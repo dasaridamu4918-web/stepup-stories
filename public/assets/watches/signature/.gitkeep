@@ -1,0 +1,3 @@
+# Keep placeholder watch folders tracked in git so you can easily drop watch photos in
+!*
+!.gitkeep

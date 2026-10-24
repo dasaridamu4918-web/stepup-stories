@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="STEPUP STORIES — Luxury timepiece collections crafted for defining moments. Explore Signature, Automatic Classics, Modern Minimal, Limited Editions, and Everyday Icons."
+    />
+    <title>STEPUP STORIES | Luxury Timepiece Collections</title>
+    <!-- Preconnect for refined Serif & Sans-Serif typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- 1. STICKY HEADER -->
+    <header class="site-header" id="top">
+      <div class="container header-inner">
+        <a href="#top" class="brand-logo-link" aria-label="STEPUP STORIES Home">
+          <img
+            src="/assets/brand/logo.jpg"
+            alt="STEPUP STORIES Emblem and Logo"
+            class="header-logo-img"
+            width="180"
+            height="100"
+          />
+          <span class="brand-wordmark">STEPUP STORIES</span>
+        </a>
+
+        <nav class="primary-nav" aria-label="Primary Navigation">
+          <ul class="nav-list">
+            <li><a href="#collections" class="nav-link">Collections</a></li>
+            <li><a href="#featured" class="nav-link">Featured</a></li>
+            <li><a href="#catalog" class="nav-link">Timepieces</a></li>
+            <li><a href="#story" class="nav-link">Brand Story</a></li>
+            <li><a href="#newsletter" class="nav-link">Journal</a></li>
+          </ul>
+        </nav>
+
+        <div class="header-actions">
+          <form class="header-search-form" id="header-search-form" role="search" aria-label="Search watches">
+            <label for="header-search-input" class="sr-only">Search watches</label>
+            <input
+              type="search"
+              id="header-search-input"
+              class="header-search-input"
+              placeholder="Search timepieces..."
+              autocomplete="off"
+            />
+            <button type="submit" class="header-search-btn" aria-label="Submit search">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="M20 20l-3.5-3.5"></path>
+              </svg>
+            </button>
+          </form>
+
+          <button
+            type="button"
+            class="mobile-menu-toggle"
+            id="mobile-menu-toggle"
+            aria-expanded="false"
+            aria-controls="mobile-navigation-drawer"
+            aria-label="Open navigation menu"
+          >
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Navigation Drawer -->
+      <div class="mobile-drawer" id="mobile-navigation-drawer" hidden>
+        <div class="mobile-drawer-inner container">
+          <form class="mobile-search-form" id="mobile-search-form" role="search">
+            <label for="mobile-search-input" class="sr-only">Search timepieces</label>
+            <input
+              type="search"
+              id="mobile-search-input"
+              class="mobile-search-input"
+              placeholder="Search collections or watches..."
+              autocomplete="off"
+            />
+          </form>
+          <ul class="mobile-nav-list">
+            <li><a href="#collections" class="mobile-nav-link">Collections</a></li>
+            <li><a href="#featured" class="mobile-nav-link">Featured Watches</a></li>
+            <li><a href="#catalog" class="mobile-nav-link">All Timepieces &amp; Filters</a></li>
+            <li><a href="#story" class="mobile-nav-link">Brand Story</a></li>
+            <li><a href="#newsletter" class="mobile-nav-link">Private Journal</a></li>
+            <li><a href="#footer" class="mobile-nav-link">Concierge &amp; Contact</a></li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <!-- 2. HERO SECTION -->
+      <section class="hero-section snap-section" aria-labelledby="hero-title">
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <div class="eyebrow-badge">
+              <span class="burgundy-dot" aria-hidden="true"></span>
+              <span>STEPUP STORIES HOROLOGY</span>
+            </div>
+            <h1 id="hero-title" class="hero-headline">
+              Timepieces Crafted for Defining Moments
+            </h1>
+            <p class="hero-intro" id="hero-intro-text">
+              Explore the curated collections of STEPUP STORIES. Designed with architectural precision, understated warmth, and enduring character.
+            </p>
+            <div class="hero-cta-group">
+              <a href="#collections" class="btn btn-primary">Explore Collections</a>
+              <a href="#catalog" class="btn btn-outline">Browse Timepieces</a>
+            </div>
+          </div>
+
+          <div class="hero-media-wrapper">
+            <div class="hero-emblem-frame" id="hero-media-frame">
+              <!-- Static poster fallback always present; video is lazily initialized respecting prefers-reduced-motion -->
+              <img
+                src="/assets/brand/logo.jpg"
+                alt="STEPUP STORIES Official Emblem"
+                class="hero-fallback-logo"
+                id="hero-fallback-logo"
+                width="960"
+                height="540"
+              />
+              <video
+                id="hero-logo-video"
+                class="hero-logo-video"
+                poster="/assets/brand/logo.jpg"
+                muted
+                playsinline
+                loop
+                preload="none"
+                aria-label="STEPUP STORIES official animated emblem"
+              >
+                <source data-src="/assets/brand/logo-animation.mp4" type="video/mp4" />
+              </video>
+              <div class="hero-video-controls">
+                <button
+                  type="button"
+                  id="hero-video-toggle"
+                  class="video-control-btn"
+                  aria-label="Pause emblem animation"
+                  title="Play / Pause animation"
+                >
+                  <span id="hero-video-status-text">Pause Motion</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. FIVE COLLECTIONS HORIZONTAL CAROUSEL -->
+      <section class="collections-section snap-section" id="collections" aria-labelledby="collections-heading">
+        <div class="container">
+          <div class="section-header-row">
+            <div>
+              <p class="section-eyebrow">Curated Pillars</p>
+              <h2 id="collections-heading" class="section-title">The Five Collections</h2>
+            </div>
+            <div class="carousel-controls" aria-label="Collections carousel controls">
+              <button
+                type="button"
+                class="carousel-btn"
+                data-carousel-prev="collections-carousel"
+                aria-label="Scroll collections left"
+              >
+                &#8592;
+              </button>
+              <button
+                type="button"
+                class="carousel-btn"
+                data-carousel-next="collections-carousel"
+                aria-label="Scroll collections right"
+              >
+                &#8594;
+              </button>
+            </div>
+          </div>
+
+          <p class="section-subtitle">
+            Swipe, drag, or use your arrow keys to explore the five signature expressions of STEPUP STORIES. Select any collection to filter the catalog below.
+          </p>
+
+          <div
+            class="carousel-track collections-carousel"
+            id="collections-carousel"
+            tabindex="0"
+            role="region"
+            aria-label="Five watch collections carousel"
+          >
+            <!-- Populated dynamically from src/data/products.js -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. FEATURED WATCHES CAROUSEL -->
+      <section class="featured-section snap-section" id="featured" aria-labelledby="featured-heading">
+        <div class="container">
+          <div class="section-header-row">
+            <div>
+              <p class="section-eyebrow">Curator’s Selection</p>
+              <h2 id="featured-heading" class="section-title">Featured Timepieces</h2>
+            </div>
+            <div class="carousel-controls" aria-label="Featured watches carousel controls">
+              <button
+                type="button"
+                class="carousel-btn"
+                data-carousel-prev="featured-carousel"
+                aria-label="Scroll featured watches left"
+              >
+                &#8592;
+              </button>
+              <button
+                type="button"
+                class="carousel-btn"
+                data-carousel-next="featured-carousel"
+                aria-label="Scroll featured watches right"
+              >
+                &#8594;
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="carousel-track featured-carousel"
+            id="featured-carousel"
+            tabindex="0"
+            role="region"
+            aria-label="Featured watches carousel"
+          >
+            <!-- Populated dynamically from src/data/products.js -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. COLLECTION FILTERS & WORKING SEARCH BOX + CATALOG -->
+      <section class="catalog-section snap-section" id="catalog" aria-labelledby="catalog-heading">
+        <div class="container">
+          <div class="catalog-top">
+            <div>
+              <p class="section-eyebrow">Complete Archive</p>
+              <h2 id="catalog-heading" class="section-title">Explore the Collection</h2>
+            </div>
+            <p class="catalog-count" id="catalog-count" aria-live="polite"></p>
+          </div>
+
+          <div class="catalog-controls-bar">
+            <div class="filter-pills" id="collection-filter-group" role="group" aria-label="Filter watches by collection">
+              <!-- Populated dynamically with All + 5 Collections -->
+            </div>
+
+            <div class="catalog-search-box">
+              <label for="catalog-search-input" class="sr-only">Filter watches by name, collection, or keyword</label>
+              <input
+                type="search"
+                id="catalog-search-input"
+                class="catalog-search-input"
+                placeholder="Search by watch name, reference, or collection..."
+                autocomplete="off"
+              />
+              <button
+                type="button"
+                id="catalog-search-clear"
+                class="catalog-search-clear"
+                hidden
+                aria-label="Clear search query"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div class="catalog-grid" id="catalog-grid" aria-live="polite">
+            <!-- Populated dynamically from src/data/products.js -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. BRAND STORY SECTION -->
+      <section class="story-section snap-section" id="story" aria-labelledby="story-heading">
+        <div class="container story-grid">
+          <div class="story-emblem-card">
+            <img
+              src="/assets/brand/logo.jpg"
+              alt="STEPUP STORIES Octagonal Crest"
+              class="story-logo-img"
+              loading="lazy"
+              width="640"
+              height="360"
+            />
+            <div class="story-caption">
+              <span class="burgundy-dot" aria-hidden="true"></span>
+              <span>The Octagonal Crest &amp; Ascent Monogram of STEPUP STORIES</span>
+            </div>
+          </div>
+
+          <div class="story-content">
+            <p class="section-eyebrow">Our Heritage &amp; Philosophy</p>
+            <h2 id="story-heading" class="section-title">The Architecture of Personal Ascent</h2>
+            <p class="story-lead">
+              Founded on the belief that every milestone deserves a lasting companion, <strong>STEPUP STORIES</strong> unites bold geometric restraint with intimate horological craft.
+            </p>
+            <p class="story-body">
+              Inspired by our signature octagonal emblem—where ascending steps meet timeless typography and a single crimson-burgundy accent—each collection is conceived for individuals who measure time not merely in hours, but in chapters of growth.
+            </p>
+            <div class="story-pillars">
+              <div class="story-pillar">
+                <h3 class="pillar-title">Octagonal Poise</h3>
+                <p class="pillar-text">Balanced proportions framed in warm champagne-gold tones and deep charcoal surfaces.</p>
+              </div>
+              <div class="story-pillar">
+                <h3 class="pillar-title">Enduring Clarity</h3>
+                <p class="pillar-text">Thoughtful dial layouts created for effortless legibility and understated presence.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. NEWSLETTER SIGNUP LAYOUT -->
+      <section class="newsletter-section snap-section" id="newsletter" aria-labelledby="newsletter-heading">
+        <div class="container">
+          <div class="newsletter-panel">
+            <div class="newsletter-copy">
+              <p class="section-eyebrow">The Private Journal</p>
+              <h2 id="newsletter-heading" class="section-title">Receive Priority Access to New Chapters</h2>
+              <p class="newsletter-desc">
+                Join the STEPUP STORIES private register for early previews of Limited Editions, collector gatherings, and studio dispatches.
+              </p>
+            </div>
+
+            <form class="newsletter-form" id="newsletter-form" novalidate>
+              <div class="newsletter-input-group">
+                <div class="form-field">
+                  <label for="newsletter-name" class="form-label">Your Name (Optional)</label>
+                  <input
+                    type="text"
+                    id="newsletter-name"
+                    name="name"
+                    class="form-input"
+                    placeholder="e.g. Aarav Mehta"
+                    autocomplete="name"
+                  />
+                </div>
+                <div class="form-field">
+                  <label for="newsletter-email" class="form-label">Email Address <span aria-hidden="true">*</span></label>
+                  <input
+                    type="email"
+                    id="newsletter-email"
+                    name="email"
+                    class="form-input"
+                    placeholder="your.name@example.com"
+                    required
+                    autocomplete="email"
+                  />
+                </div>
+              </div>
+              <div class="newsletter-actions">
+                <button type="submit" class="btn btn-primary">Request Invitation</button>
+                <p class="newsletter-note">Front-end ready — easily connect to your preferred CRM or mailing list service.</p>
+              </div>
+              <div class="newsletter-feedback" id="newsletter-feedback" role="status" aria-live="polite" hidden></div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 9. FOOTER -->
+    <footer class="site-footer" id="footer">
+      <div class="container footer-grid">
+        <div class="footer-brand-col">
+          <a href="#top" class="footer-logo-link">
+            <img
+              src="/assets/brand/logo.jpg"
+              alt="STEPUP STORIES Logo"
+              class="footer-logo-img"
+              loading="lazy"
+              width="200"
+              height="112"
+            />
+          </a>
+          <p class="footer-brand-name">STEPUP STORIES</p>
+          <p class="footer-tagline">
+            Timepieces crafted for defining moments. All specifications, imagery, and concierge links are structured for effortless customization.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h3 class="footer-heading">Collections</h3>
+          <ul class="footer-links" id="footer-collection-links">
+            <!-- Populated from collections data -->
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h3 class="footer-heading">Concierge &amp; Contact</h3>
+          <ul class="footer-contact-list" id="footer-contact-list">
+            <!-- Populated from siteConfig.contact -->
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h3 class="footer-heading">Connect</h3>
+          <ul class="footer-links" id="footer-social-links">
+            <!-- Populated from siteConfig.socials -->
+          </ul>
+        </div>
+      </div>
+
+      <div class="container footer-bottom">
+        <p>&copy; <span id="footer-year">2026</span> STEPUP STORIES. All rights reserved.</p>
+        <p class="footer-placeholder-notice">
+          Catalog managed via <code>src/data/products.js</code> &bull; Drop watch photos into <code>public/assets/watches/</code>
+        </p>
+      </div>
+    </footer>
+
+    <!-- 6. PRODUCT DETAIL MODAL -->
+    <div
+      class="modal-backdrop"
+      id="product-modal-backdrop"
+      hidden
+      aria-hidden="true"
+    >
+      <div
+        class="product-modal"
+        id="product-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-product-title"
+        tabindex="-1"
+      >
+        <button
+          type="button"
+          class="modal-close-btn"
+          id="modal-close-btn"
+          aria-label="Close timepiece details"
+        >
+          &#10005;
+        </button>
+
+        <div class="modal-body-grid">
+          <!-- Gallery Column -->
+          <div class="modal-gallery-col">
+            <div class="modal-main-stage" id="modal-main-stage">
+              <!-- Active image or on-brand SVG placeholder rendered here -->
+            </div>
+            <p class="modal-gallery-caption" id="modal-gallery-caption"></p>
+            <div class="modal-thumbnails" id="modal-thumbnails" role="list" aria-label="Product gallery views">
+              <!-- Thumbnails populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Info Column -->
+          <div class="modal-info-col">
+            <div class="modal-meta-top">
+              <span class="modal-collection-tag" id="modal-collection-tag"></span>
+              <span class="modal-reference" id="modal-reference"></span>
+            </div>
+            <h2 class="modal-product-title" id="modal-product-title"></h2>
+            <p class="modal-product-price" id="modal-product-price"></p>
+            <p class="modal-product-description" id="modal-product-description"></p>
+
+            <div class="modal-specs-block">
+              <h3 class="modal-specs-heading">Editable Specifications</h3>
+              <dl class="modal-specs-list" id="modal-specs-list">
+                <!-- Editable details key/value pairs populated here -->
+              </dl>
+            </div>
+
+            <div class="modal-Path-hint">
+              <span class="path-label">Image file path to replace:</span>
+              <code id="modal-image-path-code"></code>
+            </div>
+
+            <div class="modal-cta-group">
+              <a href="#enquire" id="modal-enquire-btn" class="btn btn-primary">
+                Enquire About This Timepiece
+              </a>
+              <a href="#buy" id="modal-buy-btn" class="btn btn-outline">
+                Buy / Request Acquisition
+              </a>
+            </div>
+            <p class="modal-enquiry-status" id="modal-enquiry-status" role="status" aria-live="polite" hidden></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
