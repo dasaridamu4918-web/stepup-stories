@@ -10,12 +10,13 @@ function createWatchVisualHTML({ imagePath, title, subtitle = "STEPUP STORIES", 
   const safeTitle = escapeHTML(title);
   const safeSubtitle = escapeHTML(subtitle);
   const safePath = escapeHTML(imagePath);
+  const resolvedSrc = safePath.startsWith("/") ? `.${safePath}` : safePath;
 
   return `
     <div class="watch-visual-slot">
       ${badge ? `<span class="product-badge">${escapeHTML(badge)}</span>` : ""}
       <img
-        src="${safePath}"
+        src="${resolvedSrc}"
         alt="${safeTitle}"
         class="watch-real-img"
         loading="lazy"
