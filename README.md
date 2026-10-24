@@ -97,3 +97,19 @@ Open **`src/styles/main.css`** and edit the `:root` CSS variables at the top of 
 - `--gold-champagne`, `--gold-bright`, `--gold-muted` (champagne-gold accents inspired by the logo)
 - `--burgundy-accent`, `--burgundy-highlight` (restrained burgundy accents)
 - `--font-serif`, `--font-sans` (heading and body font stacks)
+
+---
+
+## Scroll-Controlled 240-Frame Sequence Story Configuration
+
+The interactive scroll-scrubbed timepiece sequence (placed immediately after the Hero and before the Collections) is configured in a single file:
+
+- **`src/data/storySequenceConfig.js`**
+
+From that file you can edit:
+- `frameCount`: Total frames (`240`)
+- `desktopPathPattern`: `./assets/story/frames/frame-{index}.webp` (`720x1280` WebP)
+- `mobilePathPattern`: `./assets/story/frames-mobile/frame-{index}.webp` (`540x960` WebP, `4.24 MB` total)
+- `scrollLengthDesktop` (`"360vh"`) and `scrollLengthMobile` (`"260vh"`)
+- `reducedMotionFrame` (`120` — static exploded-view frame displayed when `prefers-reduced-motion: reduce` is enabled)
+- `captions`: Array of chapter cards with `startFrame`, `endFrame`, `eyebrow`, `title`, and `body`.

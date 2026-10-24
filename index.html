@@ -36,6 +36,7 @@
 
         <nav class="primary-nav" aria-label="Primary Navigation">
           <ul class="nav-list">
+            <li><a href="#scroll-story" class="nav-link">In Motion</a></li>
             <li><a href="#collections" class="nav-link">Collections</a></li>
             <li><a href="#featured" class="nav-link">Featured</a></li>
             <li><a href="#catalog" class="nav-link">Timepieces</a></li>
@@ -91,6 +92,7 @@
             />
           </form>
           <ul class="mobile-nav-list">
+            <li><a href="#scroll-story" class="mobile-nav-link">Timepiece in Motion</a></li>
             <li><a href="#collections" class="mobile-nav-link">Collections</a></li>
             <li><a href="#featured" class="mobile-nav-link">Featured Watches</a></li>
             <li><a href="#catalog" class="mobile-nav-link">All Timepieces &amp; Filters</a></li>
@@ -156,6 +158,94 @@
                 >
                   <span id="hero-video-status-text">Pause Motion</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2.5 SCROLL-CONTROLLED FRAME SEQUENCE STORY SECTION -->
+      <section
+        class="scroll-story-section"
+        id="scroll-story"
+        aria-label="Interactive timepiece frame-sequence story"
+      >
+        <!-- Interactive Sticky Track (Active when motion is allowed) -->
+        <div class="scroll-story-track" id="scroll-story-track">
+          <div class="scroll-story-sticky" id="scroll-story-sticky">
+            <!-- Thin Champagne-Gold Progress Line at top of sticky viewport -->
+            <div class="scroll-story-progress-bar" aria-hidden="true">
+              <div class="scroll-story-progress-fill" id="scroll-story-progress-fill"></div>
+            </div>
+
+            <!-- Instant First-Frame Poster so the section is never blank -->
+            <img
+              src="./assets/story/frames-mobile/frame-001.webp"
+              srcset="./assets/story/frames-mobile/frame-001.webp 540w, ./assets/story/frames/frame-001.webp 720w"
+              sizes="(max-width: 768px) 100vw, 720px"
+              alt="STEPUP STORIES Timepiece — Opening Frame"
+              class="scroll-story-poster"
+              id="scroll-story-poster"
+              width="720"
+              height="1280"
+              decoding="async"
+            />
+
+            <!-- High-DPI Pinned Canvas -->
+            <canvas
+              id="scroll-story-canvas"
+              class="scroll-story-canvas"
+              role="img"
+              aria-label="Interactive 240-frame scroll sequence showcasing the STEPUP STORIES skeleton timepiece deconstruction and reassembly."
+            ></canvas>
+
+            <!-- Subtle Ambient Vignette & HUD Overlay -->
+            <div class="scroll-story-hud">
+              <div class="container scroll-story-hud-inner">
+                <div class="scroll-story-counter" id="scroll-story-counter" aria-hidden="true">
+                  <span class="burgundy-dot"></span>
+                  <span id="scroll-story-frame-readout">FRAME 001 / 240</span>
+                </div>
+
+                <!-- Dynamic Fade-In Captions Container -->
+                <div
+                  class="scroll-story-captions-stage"
+                  id="scroll-story-captions-stage"
+                  aria-live="polite"
+                >
+                  <!-- Populated from src/data/storySequenceConfig.js -->
+                </div>
+
+                <!-- Scroll Hint at the start -->
+                <div class="scroll-story-hint" id="scroll-story-hint" aria-hidden="true">
+                  <span class="scroll-hint-label">Scroll to Explore Craft</span>
+                  <span class="scroll-hint-line"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reduced-Motion Static Fallback View (Shown automatically when prefers-reduced-motion: reduce) -->
+        <div class="scroll-story-reduced" id="scroll-story-reduced" hidden>
+          <div class="container">
+            <div class="scroll-story-reduced-header">
+              <p class="section-eyebrow">Horological Architecture</p>
+              <h2 class="section-title">Inside the Timepiece</h2>
+            </div>
+            <div class="scroll-story-reduced-grid">
+              <div class="scroll-story-reduced-figure">
+                <img
+                  id="scroll-story-reduced-img"
+                  src="./assets/story/frames/frame-120.webp"
+                  alt="STEPUP STORIES Timepiece Exploded Architecture View"
+                  width="720"
+                  height="1280"
+                  loading="lazy"
+                />
+              </div>
+              <div class="scroll-story-reduced-captions" id="scroll-story-reduced-captions">
+                <!-- Stacked captions populated from src/data/storySequenceConfig.js -->
               </div>
             </div>
           </div>

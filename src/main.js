@@ -1,4 +1,5 @@
 import { siteConfig, collections, products } from "./data/products.js";
+import { storySequenceConfig } from "./data/storySequenceConfig.js";
 
 /**
  * Generates an attractive, on-brand dark-gradient placeholder with a subtle
@@ -783,6 +784,387 @@ function initNewsletterAndFooter() {
 }
 
 /* ==========================================================================
+   2.5 SCROLL-CONTROLLED FRAME SEQUENCE STORY ENGINE
+   ========================================================================== */
+function initScrollStorySequence() {
+  const sectionEl = document.getElementById("scroll-story");
+  const trackEl = document.getElementById("scroll-story-track");
+  const stickyEl = document.getElementById("scroll-story-sticky");
+  const canvas = document.getElementById("scroll-story-canvas");
+  const posterEl = document.getElementById("scroll-story-poster");
+  const progressFill = document.getElementById("scroll-story-progress-fill");
+  const frameReadout = document.getElementById("scroll-story-frame-readout");
+  const captionsStage = document.getElementById("scroll-story-captions-stage");
+  const hintEl = document.getElementById("scroll-story-hint");
+  const reducedWrap = document.getElementById("scroll-story-reduced");
+  const reducedImg = document.getElementById("scroll-story-reduced-img");
+  const reducedCaptions = document.getElementById("scroll-story-reduced-captions");
+
+  if (!sectionEl || !trackEl || !canvas) return;
+
+  const cfg = storySequenceConfig;
+  const totalFrames = cfg.frameCount;
+
+  // Apply scroll track lengths from single config file
+  trackEl.style.setProperty("--story-scroll-length", cfg.scrollLengthDesktop);
+  trackEl.style.setProperty("--story-scroll-length-mobile", cfg.scrollLengthMobile);
+  canvas.setAttribute("aria-label", cfg.canvasAriaLabel);
+
+  const padIndex = (n) => String(n).padStart(cfg.indexPadding || 3, "0");
+  const isMobileViewport = () => window.innerWidth <= (cfg.mobileBreakpoint || 768);
+  const getFrameUrl = (index1Based) => {
+    const pattern = isMobileViewport() ? cfg.mobilePathPattern : cfg.desktopPathPattern;
+    return pattern.replace("{index}", padIndex(index1Based));
+  };
+
+  // Populate interactive fade-in captions
+  if (captionsStage) {
+    captionsStage.innerHTML = cfg.captions
+      .map(
+        (cap) => `
+        <article
+          class="scroll-story-caption-card"
+          data-caption-id="${escapeHTML(cap.id)}"
+          data-start-frame="${cap.startFrame}"
+          data-end-frame="${cap.endFrame}"
+        >
+          <p class="scroll-caption-eyebrow">${escapeHTML(cap.eyebrow)}</p>
+          <h3 class="scroll-caption-title">${escapeHTML(cap.title)}</h3>
+          <p class="scroll-caption-body">${escapeHTML(cap.body)}</p>
+        </article>
+      `
+      )
+      .join("");
+  }
+
+  // Populate reduced-motion static fallback view
+  if (reducedCaptions) {
+    reducedCaptions.innerHTML = cfg.captions
+      .map(
+        (cap) => `
+        <article class="reduced-caption-item">
+          <p class="scroll-caption-eyebrow">${escapeHTML(cap.eyebrow)}</p>
+          <h3 class="scroll-caption-title">${escapeHTML(cap.title)}</h3>
+          <p class="scroll-caption-body">${escapeHTML(cap.body)}</p>
+        </article>
+      `
+      )
+      .join("");
+  }
+
+  const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  function applyReducedMotionState(isReduced) {
+    if (isReduced) {
+      trackEl.hidden = true;
+      if (reducedWrap) reducedWrap.hidden = false;
+      if (reducedImg) {
+        reducedImg.src = getFrameUrl(cfg.reducedMotionFrame || 120);
+      }
+      return true;
+    } else {
+      trackEl.hidden = false;
+      if (reducedWrap) reducedWrap.hidden = true;
+      return false;
+    }
+  }
+
+  if (applyReducedMotionState(reducedMotionQuery.matches)) {
+    reducedMotionQuery.addEventListener("change", (e) => {
+      if (!applyReducedMotionState(e.matches)) {
+        initScrollStorySequence();
+      }
+    });
+    return;
+  }
+
+  reducedMotionQuery.addEventListener("change", (e) => {
+    applyReducedMotionState(e.matches);
+  });
+
+  // Frame storage & loading state (1-based index: 1..totalFrames)
+  const frames = new Array(totalFrames + 1).fill(null);
+  const frameStatus = new Array(totalFrames + 1).fill(0); // 0 = unloaded, 1 = loading, 2 = loaded, -1 = error
+  let activeLoads = 0;
+  let backgroundLoaderStarted = false;
+
+  // Scroll & interpolation state
+  let targetFrameFloat = 1;
+  let currentFrameFloat = 1;
+  let lastDrawnFrameIndex = -1;
+  let lastCanvasWidth = 0;
+  let lastCanvasHeight = 0;
+  let rafId = null;
+
+  const ctx = canvas.getContext("2d", { alpha: false });
+  const captionCards = captionsStage
+    ? Array.from(captionsStage.querySelectorAll(".scroll-story-caption-card"))
+    : [];
+
+  // Find the nearest loaded frame to `desiredIndex` so we never show a blank/broken frame
+  function getNearestLoadedFrameIndex(desiredIndex) {
+    if (frames[desiredIndex]) return desiredIndex;
+    for (let offset = 1; offset < totalFrames; offset++) {
+      const lower = desiredIndex - offset;
+      if (lower >= 1 && frames[lower]) return lower;
+      const upper = desiredIndex + offset;
+      if (upper <= totalFrames && frames[upper]) return upper;
+    }
+    return -1;
+  }
+
+  function resizeCanvasIfNeeded() {
+    if (!stickyEl) return false;
+    const rect = stickyEl.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const displayWidth = Math.max(1, Math.round(rect.width * dpr));
+    const displayHeight = Math.max(1, Math.round(rect.height * dpr));
+
+    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+      canvas.width = displayWidth;
+      canvas.height = displayHeight;
+      lastCanvasWidth = displayWidth;
+      lastCanvasHeight = displayHeight;
+      return true;
+    }
+    return false;
+  }
+
+  function drawFrame(frameIndex) {
+    const resized = resizeCanvasIfNeeded();
+    const resolvedIndex = getNearestLoadedFrameIndex(frameIndex);
+
+    if (resolvedIndex === -1) {
+      // Keep the HTML poster visible until at least 1 frame is decoded
+      if (posterEl) posterEl.classList.remove("is-hidden");
+      return;
+    }
+
+    // Do not redraw if the resolved frame and canvas size haven't changed
+    if (!resized && resolvedIndex === lastDrawnFrameIndex) {
+      return;
+    }
+
+    const img = frames[resolvedIndex];
+    if (!img) return;
+
+    const cw = lastCanvasWidth || canvas.width;
+    const ch = lastCanvasHeight || canvas.height;
+    const iw = img.naturalWidth || cfg.frameWidth;
+    const ih = img.naturalHeight || cfg.frameHeight;
+
+    // Fill near-black background matching the site palette
+    ctx.fillStyle = "#050608";
+    ctx.fillRect(0, 0, cw, ch);
+
+    // Desktop: "contain" centered; Mobile (<=768px): "cover" where it fills the vertical screen cleanly
+    const useCover = isMobileViewport();
+    const scale = useCover
+      ? Math.max(cw / iw, ch / ih)
+      : Math.min(cw / iw, ch / ih);
+
+    const drawW = iw * scale;
+    const drawH = ih * scale;
+    const drawX = (cw - drawW) * 0.5;
+    const drawY = (ch - drawH) * 0.5;
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+    lastDrawnFrameIndex = resolvedIndex;
+    if (posterEl) {
+      posterEl.classList.add("is-hidden");
+    }
+  }
+
+  function updateHUD(frameIndex, progress0To1) {
+    if (progressFill) {
+      progressFill.style.transform = `scaleX(${progress0To1.toFixed(4)})`;
+    }
+    if (frameReadout) {
+      frameReadout.textContent = `FRAME ${padIndex(frameIndex)} / ${totalFrames}`;
+    }
+    if (hintEl) {
+      if (progress0To1 > 0.04) {
+        hintEl.classList.add("is-hidden");
+      } else {
+        hintEl.classList.remove("is-hidden");
+      }
+    }
+    for (let i = 0; i < captionCards.length; i++) {
+      const card = captionCards[i];
+      const start = Number(card.getAttribute("data-start-frame"));
+      const end = Number(card.getAttribute("data-end-frame"));
+      const active = frameIndex >= start && frameIndex <= end;
+      card.classList.toggle("is-active", active);
+    }
+  }
+
+  function computeScrollProgress() {
+    const rect = trackEl.getBoundingClientRect();
+    const stickyHeight = stickyEl ? stickyEl.offsetHeight : window.innerHeight;
+    const scrollableDistance = Math.max(1, rect.height - stickyHeight);
+    // Offset by header height so progress starts right when sticky locks in
+    const headerOffset = 82;
+    const scrolled = headerOffset - rect.top;
+    const clamped = Math.max(0, Math.min(1, scrolled / scrollableDistance));
+    targetFrameFloat = 1 + clamped * (totalFrames - 1);
+    return clamped;
+  }
+
+  function tick() {
+    const progress = computeScrollProgress();
+    // Smooth interpolation toward target frame
+    const diff = targetFrameFloat - currentFrameFloat;
+    if (Math.abs(diff) > 0.05) {
+      currentFrameFloat += diff * 0.28;
+    } else {
+      currentFrameFloat = targetFrameFloat;
+    }
+
+    const displayFrame = Math.max(1, Math.min(totalFrames, Math.round(currentFrameFloat)));
+    drawFrame(displayFrame);
+    updateHUD(displayFrame, progress);
+
+    if (Math.abs(targetFrameFloat - currentFrameFloat) > 0.05) {
+      rafId = window.requestAnimationFrame(tick);
+    } else {
+      rafId = null;
+    }
+  }
+
+  function requestTick() {
+    if (rafId === null) {
+      rafId = window.requestAnimationFrame(tick);
+    }
+  }
+
+  // Priority-aware non-blocking frame loader
+  function loadSingleFrame(index, onDone) {
+    if (index < 1 || index > totalFrames || frameStatus[index] !== 0) {
+      if (onDone) onDone();
+      return;
+    }
+    frameStatus[index] = 1;
+    activeLoads++;
+
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      frames[index] = img;
+      frameStatus[index] = 2;
+      activeLoads--;
+      // Redraw immediately if this frame improves what's currently on screen
+      const targetRounded = Math.round(currentFrameFloat);
+      if (Math.abs(index - targetRounded) <= 4 || lastDrawnFrameIndex === -1) {
+        requestTick();
+      }
+      if (onDone) onDone();
+    };
+    img.onerror = () => {
+      frameStatus[index] = -1;
+      activeLoads--;
+      if (onDone) onDone();
+    };
+    img.src = getFrameUrl(index);
+  }
+
+  function pickNextFrameToLoad() {
+    const center = Math.max(1, Math.min(totalFrames, Math.round(targetFrameFloat)));
+    const radius = cfg.priorityWindowRadius || 12;
+
+    // 1. Prioritize frames near the user's current scroll position
+    for (let offset = 0; offset <= radius; offset++) {
+      const fwd = center + offset;
+      if (fwd <= totalFrames && frameStatus[fwd] === 0) return fwd;
+      const bwd = center - offset;
+      if (bwd >= 1 && frameStatus[bwd] === 0) return bwd;
+    }
+
+    // 2. Next, ensure the first initialPreloadCount frames (1..25) are loaded
+    const preloadLimit = Math.min(totalFrames, cfg.initialPreloadCount || 25);
+    for (let i = 1; i <= preloadLimit; i++) {
+      if (frameStatus[i] === 0) return i;
+    }
+
+    // 3. Finally, load remaining frames in sequential order
+    for (let i = 1; i <= totalFrames; i++) {
+      if (frameStatus[i] === 0) return i;
+    }
+    return -1;
+  }
+
+  function pumpLoadQueue() {
+    const maxConcurrency = cfg.maxConcurrentLoads || 4;
+    while (activeLoads < maxConcurrency) {
+      const nextIdx = pickNextFrameToLoad();
+      if (nextIdx === -1) break;
+      loadSingleFrame(nextIdx, pumpLoadQueue);
+    }
+  }
+
+  function startFrameLoading() {
+    if (backgroundLoaderStarted) return;
+    backgroundLoaderStarted = true;
+    // Load frame 1 immediately, then pump queue
+    loadSingleFrame(1, () => {
+      requestTick();
+      pumpLoadQueue();
+    });
+  }
+
+  // Start loading the first 25 frames after initial page render, or immediately if scrolled near
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          startFrameLoading();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(sectionEl);
+  }
+
+  window.addEventListener(
+    "load",
+    () => {
+      if ("requestIdleCallback" in window) {
+        window.requestIdleCallback(startFrameLoading, { timeout: 1000 });
+      } else {
+        setTimeout(startFrameLoading, 250);
+      }
+    },
+    { once: true }
+  );
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (backgroundLoaderStarted) {
+        pumpLoadQueue();
+      }
+      requestTick();
+    },
+    { passive: true }
+  );
+
+  window.addEventListener(
+    "resize",
+    () => {
+      lastDrawnFrameIndex = -1;
+      requestTick();
+    },
+    { passive: true }
+  );
+
+  // Initial layout & HUD render
+  requestTick();
+}
+
+/* ==========================================================================
    BOOT APPLICATION
    ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
@@ -795,4 +1177,5 @@ document.addEventListener("DOMContentLoaded", () => {
   initModalEvents();
   initNewsletterAndFooter();
   initHeroLogoAnimation();
+  initScrollStorySequence();
 });

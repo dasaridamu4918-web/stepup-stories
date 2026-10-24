@@ -551,6 +551,271 @@ input {
 }
 
 /* ==========================================================================
+   2.5 SCROLL-CONTROLLED FRAME SEQUENCE STORY SECTION
+   ========================================================================== */
+.scroll-story-section {
+  position: relative;
+  background-color: var(--bg-obsidian);
+  border-bottom: 1px solid var(--gold-border);
+}
+
+.scroll-story-track {
+  position: relative;
+  width: 100%;
+  height: var(--story-scroll-length, 360vh);
+}
+
+.scroll-story-sticky {
+  position: sticky;
+  top: var(--header-height);
+  width: 100%;
+  height: calc(100vh - var(--header-height));
+  height: calc(100dvh - var(--header-height));
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(212, 180, 117, 0.06), transparent 65%),
+    #050608;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Thin Champagne-Gold Progress Line */
+.scroll-story-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(212, 180, 117, 0.14);
+  z-index: 6;
+}
+
+.scroll-story-progress-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-champagne) 0%, var(--gold-bright) 100%);
+  transform-origin: left center;
+  transform: scaleX(0);
+  box-shadow: 0 0 12px rgba(232, 207, 160, 0.55);
+  will-change: transform;
+}
+
+/* Instant First-Frame Poster & Pinned Canvas */
+.scroll-story-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+.scroll-story-poster.is-hidden {
+  opacity: 0;
+}
+
+.scroll-story-canvas {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* HUD Overlay (Captions, Frame Counter, Scroll Hint) */
+.scroll-story-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(7, 9, 11, 0.55) 0%, transparent 18%, transparent 72%, rgba(7, 9, 11, 0.78) 100%);
+}
+
+.scroll-story-hud-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-top: 1.5rem;
+  padding-bottom: 2rem;
+}
+
+.scroll-story-counter {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(7, 9, 11, 0.72);
+  border: 1px solid var(--gold-border);
+  backdrop-filter: blur(8px);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+}
+
+.scroll-story-captions-stage {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  min-height: 175px;
+  margin-top: auto;
+  margin-bottom: 1.25rem;
+}
+
+.scroll-story-caption-card {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  padding: 1.35rem 1.5rem;
+  background: rgba(10, 13, 17, 0.82);
+  border: 1px solid var(--gold-border-strong);
+  border-left: 3px solid var(--gold-champagne);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 320ms ease, transform 320ms ease;
+  pointer-events: none;
+}
+
+.scroll-story-caption-card.is-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.scroll-caption-eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-champagne);
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.scroll-caption-title {
+  font-family: var(--font-serif);
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin-bottom: 0.45rem;
+}
+
+.scroll-caption-body {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+/* Scroll Hint at start */
+.scroll-story-hint {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.scroll-story-hint.is-hidden {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.scroll-hint-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  background: rgba(7, 9, 11, 0.75);
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--gold-border);
+}
+
+.scroll-hint-line {
+  width: 1px;
+  height: 28px;
+  background: linear-gradient(180deg, var(--gold-bright) 0%, transparent 100%);
+}
+
+/* Reduced-Motion Static Fallback Layout */
+.scroll-story-reduced {
+  padding: var(--section-space) 0;
+  background: var(--bg-obsidian);
+}
+
+.scroll-story-reduced-header {
+  margin-bottom: 2.25rem;
+}
+
+.scroll-story-reduced-grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: clamp(1.75rem, 4vw, 3.5rem);
+  align-items: start;
+}
+
+.scroll-story-reduced-figure {
+  background: #050608;
+  border: 1px solid var(--gold-border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  max-width: 460px;
+  margin-inline: auto;
+}
+
+.scroll-story-reduced-figure img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.scroll-story-reduced-captions {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.reduced-caption-item {
+  padding: 1.35rem 1.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--gold-border);
+  border-left: 3px solid var(--gold-champagne);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 768px) {
+  .scroll-story-track {
+    height: var(--story-scroll-length-mobile, 260vh);
+  }
+  .scroll-story-poster {
+    object-fit: cover;
+  }
+  .scroll-story-captions-stage {
+    max-width: 100%;
+    min-height: 155px;
+  }
+  .scroll-story-caption-card {
+    padding: 1.05rem 1.15rem;
+  }
+  .scroll-story-reduced-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
    3 & 4. CAROUSELS (COLLECTIONS & FEATURED WATCHES)
    ========================================================================== */
 .collections-section,

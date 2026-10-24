@@ -16,7 +16,11 @@ class WatchSiteHandler(http.server.SimpleHTTPRequestHandler):
             return fallback_public
         return primary
 
+class ThreadingHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
 os.chdir(ROOT)
-with socketserver.TCPServer(("127.0.0.1", PORT), WatchSiteHandler) as httpd:
+with ThreadingHTTPServer(("127.0.0.1", PORT), WatchSiteHandler) as httpd:
     print(f"Serving STEPUP STORIES at http://127.0.0.1:{PORT}")
     httpd.serve_forever()
