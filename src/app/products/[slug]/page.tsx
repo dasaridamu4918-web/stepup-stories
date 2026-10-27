@@ -256,13 +256,13 @@ export default async function ProductDetailPage({
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <a
                 href="#product-enquiry-section"
-                className="inline-flex items-center justify-center rounded bg-gradient-to-r from-gold-bright to-gold px-7 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-obsidian transition hover:brightness-110"
+                className="btn-luxury inline-flex items-center justify-center rounded bg-gradient-to-r from-gold-bright to-gold px-7 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-obsidian hover:brightness-110"
               >
                 Enquire About This Watch
               </a>
               <Link
                 href={`/concierge?type=private_viewing&product=${encodeURIComponent(product.slug)}&name=${encodeURIComponent(product.name)}`}
-                className="inline-flex items-center justify-center rounded border border-gold/50 px-7 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-gold-bright transition hover:bg-gold/10"
+                className="btn-luxury inline-flex items-center justify-center rounded border border-gold/50 px-7 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-gold-bright hover:bg-gold/10"
               >
                 Book a Private Viewing
               </Link>

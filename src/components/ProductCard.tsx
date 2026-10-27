@@ -58,7 +58,7 @@ export function ProductCard({ product }: { product: ProductRecord }) {
     availabilityBadgeMap[product.availability_status] ?? availabilityBadgeMap.available;
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-lg border border-gold/25 bg-surface transition duration-300 hover:-translate-y-1 hover:border-gold/60 hover:shadow-2xl">
+    <article className="card-luxury group flex h-full flex-col overflow-hidden rounded-lg border border-gold/25 bg-surface">
       {/* Image Slot: Shows real uploaded watch photo if present, or a clean, unlabelled neutral studio frame */}
       <Link
         href={`/products/${encodeURIComponent(product.slug)}`}
@@ -83,7 +83,7 @@ export function ProductCard({ product }: { product: ProductRecord }) {
             alt={primaryImage.alt_text || product.name}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition duration-500 group-hover:scale-105"
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.035] group-focus-within:scale-[1.02]"
           />
         ) : (
           /* Neutral, unlabelled architectural frame (never an AI watch) when no photo is uploaded yet */
@@ -153,13 +153,13 @@ export function ProductCard({ product }: { product: ProductRecord }) {
           <div className="flex items-center gap-2">
             <Link
               href={`/products/${encodeURIComponent(product.slug)}`}
-              className="rounded border border-gold/35 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-bright transition hover:border-gold-bright hover:bg-gold/10"
+              className="btn-luxury rounded border border-gold/35 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-bright hover:border-gold-bright hover:bg-gold/10"
             >
               Details
             </Link>
             <Link
               href={`/concierge?product=${encodeURIComponent(product.slug)}&name=${encodeURIComponent(product.name)}`}
-              className="rounded bg-gold px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-obsidian transition hover:bg-gold-bright"
+              className="btn-luxury rounded bg-gold px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-obsidian hover:bg-gold-bright"
             >
               Enquire
             </Link>

@@ -119,7 +119,7 @@ export function CatalogExplorer({
               type="button"
               onClick={() => handleCollectionSelect("all")}
               aria-pressed={activeCollection === "all"}
-              className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.12em] transition ${
+              className={`btn-luxury rounded-full border px-4 py-2 text-xs uppercase tracking-[0.12em] ${
                 activeCollection === "all"
                   ? "border-transparent bg-gold font-semibold text-obsidian"
                   : "border-gold/25 bg-surface text-cream-secondary hover:border-gold"
@@ -133,7 +133,7 @@ export function CatalogExplorer({
                 type="button"
                 onClick={() => handleCollectionSelect(col.slug)}
                 aria-pressed={activeCollection === col.slug}
-                className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.12em] transition ${
+                className={`btn-luxury rounded-full border px-4 py-2 text-xs uppercase tracking-[0.12em] ${
                   activeCollection === col.slug
                     ? "border-transparent bg-gold font-semibold text-obsidian"
                     : "border-gold/25 bg-surface text-cream-secondary hover:border-gold"

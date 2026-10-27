@@ -20,6 +20,12 @@
   --text-primary: #f6f3ec;
   --text-secondary: #c9c4b9;
   --text-muted: #9a9488;
+
+  /* Sticky Header Offset & Motion Tokens */
+  --header-height: 5rem;
+  --ease-luxury: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-quick: 240ms;
+  --duration-smooth: 420ms;
 }
 
 *,
@@ -32,20 +38,12 @@ html {
   background-color: var(--bg-obsidian);
   color: var(--text-primary);
   scroll-behavior: smooth;
-  scroll-padding-top: 5rem;
+  scroll-padding-top: calc(var(--header-height) + 1.5rem);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+section[id],
+div[id] {
+  scroll-margin-top: calc(var(--header-height) + 1.5rem);
 }
 
 body {
@@ -57,9 +55,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Accessible Keyboard Focus Ring with Smooth Transition */
 :focus-visible {
   outline: 2px solid var(--gold-bright);
   outline-offset: 3px;
+  transition: outline-offset 160ms var(--ease-luxury),
+    border-color 200ms var(--ease-luxury),
+    box-shadow 200ms var(--ease-luxury);
 }
 
 .skip-link {
@@ -72,8 +74,93 @@ body {
   padding: 0.75rem 1.25rem;
   font-weight: 600;
   border-radius: 0.25rem;
+  transition: top var(--duration-quick) var(--ease-luxury);
 }
 
 .skip-link:focus {
   top: 1rem;
+}
+
+/* Soft Page & Product Detail Entrance Animation */
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-page-enter {
+  animation: pageFadeIn 340ms var(--ease-luxury) both;
+}
+
+/* Subtle Interactive Card & Button Polish */
+.card-luxury {
+  transition: transform 320ms var(--ease-luxury),
+    border-color 280ms var(--ease-luxury),
+    box-shadow 320ms var(--ease-luxury);
+}
+
+.card-luxury:hover,
+.card-luxury:focus-within {
+  transform: translate3d(0, -4px, 0);
+  border-color: rgba(234, 211, 163, 0.65);
+  box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.75),
+    0 0 24px -8px rgba(212, 180, 117, 0.2);
+}
+
+.btn-luxury {
+  transition: transform 220ms var(--ease-luxury),
+    background-color 220ms var(--ease-luxury),
+    border-color 220ms var(--ease-luxury),
+    color 220ms var(--ease-luxury),
+    box-shadow 220ms var(--ease-luxury),
+    filter 220ms var(--ease-luxury);
+}
+
+.btn-luxury:hover {
+  transform: translate3d(0, -1px, 0);
+}
+
+.btn-luxury:active {
+  transform: translate3d(0, 0, 0);
+}
+
+/* Smooth Horizontal Carousel Track */
+.carousel-track {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Strict Reduced-Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  html,
+  .carousel-track {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-page-enter,
+  .card-luxury:hover,
+  .card-luxury:focus-within,
+  .btn-luxury:hover {
+    animation: none !important;
+    transform: none !important;
+  }
 }
