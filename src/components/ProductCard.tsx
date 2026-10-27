@@ -143,6 +143,11 @@ export function ProductCard({ product }: { product: ProductRecord }) {
                   {discountBadge}
                 </span>
               )}
+              {product.savings_label && (
+                <span className="rounded border border-gold/35 bg-gold/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gold-bright">
+                  {product.savings_label}
+                </span>
+              )}
             </div>
           ) : (
             <span className="text-xs uppercase tracking-[0.14em] text-cream-muted">

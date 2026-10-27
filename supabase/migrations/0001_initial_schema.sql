@@ -79,6 +79,7 @@ create table if not exists public.products (
   price_amount numeric(12, 2),
   original_price_amount numeric(12, 2),
   discount_percent numeric(5, 2),
+  savings_label text,
   price_currency text default 'INR',
   price_display text,
   availability_status text not null default 'available'

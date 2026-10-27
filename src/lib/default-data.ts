@@ -184,6 +184,83 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T06:30:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222206",
+    slug: "worldtimer-inspired-black-gold-watch",
+    name: "Worldtimer-Inspired Black & Gold Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111105",
+    collection: defaultCollections[4],
+    short_description:
+      "Dark dial with a globe-style center, city names around the dial, date window, dark case with warm metallic accents, and black stitched strap.",
+    description:
+      "Presented in the Everyday Icons collection, the Worldtimer-Inspired Black & Gold Watch features a dark dial with a globe-style center, an inner 24-hour ring, city names around the outer dial perimeter, and a 6 o'clock date window. Framed by a dark case with warm metallic accents, it is paired with a black textured strap finished with contrast stitching.",
+    price_amount: 1799,
+    original_price_amount: 2099,
+    discount_percent: 14,
+    savings_label: "Save ₹300",
+    price_currency: "INR",
+    price_display: "₹1,799",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 2,
+    specs: [
+      { key: "Collection", value: "Everyday Icons" },
+      { key: "Dial", value: "Dark Dial with Globe-Style Center & 24-Hour Ring" },
+      { key: "Outer Ring", value: "City Names Around the Dial" },
+      { key: "Calendar", value: "Date Window at 6 O'Clock" },
+      { key: "Case", value: "Dark Case with Warm Metallic Accents" },
+      { key: "Strap", value: "Black Textured Strap with Contrast Stitching" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333305",
+        product_id: "22222222-2222-4222-8222-222222222206",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/worldtimer-inspired-black-gold-1.jpg",
+        alt_text: "Worldtimer-Inspired Black & Gold Watch front view showing dark globe dial and city ring",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333306",
+        product_id: "22222222-2222-4222-8222-222222222206",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/worldtimer-inspired-black-gold-2.jpg",
+        alt_text: "Worldtimer-Inspired Black & Gold Watch three-quarter angled view showing case and black stitched strap",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333307",
+        product_id: "22222222-2222-4222-8222-222222222206",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/worldtimer-inspired-black-gold-3.jpg",
+        alt_text: "Worldtimer-Inspired Black & Gold Watch side profile showing crown and strap stitching",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333308",
+        product_id: "22222222-2222-4222-8222-222222222206",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/worldtimer-inspired-black-gold-4.jpg",
+        alt_text: "Worldtimer-Inspired Black & Gold Watch close-up of globe-style center and city names",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T07:05:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",

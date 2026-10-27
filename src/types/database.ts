@@ -47,6 +47,7 @@ export interface ProductRecord {
   price_amount: number | null;
   original_price_amount?: number | null;
   discount_percent?: number | null;
+  savings_label?: string | null;
   price_currency: string | null;
   price_display: string | null;
   availability_status: AvailabilityStatus;

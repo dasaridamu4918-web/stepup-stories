@@ -149,6 +149,7 @@ function normalizeProductRow(
         : row.discount_percent
           ? Number(row.discount_percent)
           : null,
+    savings_label: row.savings_label ? String(row.savings_label) : null,
     price_currency: row.price_currency ? String(row.price_currency) : null,
     price_display: row.price_display ? String(row.price_display) : null,
     availability_status:
@@ -465,6 +466,8 @@ export async function saveAdminProduct(product: Partial<ProductRecord> & { name:
       product.original_price_amount ?? existing?.original_price_amount ?? null,
     discount_percent:
       product.discount_percent ?? existing?.discount_percent ?? null,
+    savings_label:
+      product.savings_label ?? existing?.savings_label ?? null,
     price_currency: product.price_currency ?? "INR",
     price_display: product.price_display ?? null,
     availability_status: product.availability_status ?? "available",
