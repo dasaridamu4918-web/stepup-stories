@@ -1194,6 +1194,93 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T11:30:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222218",
+    slug: "fossil-white-dial-gold-tone-watch",
+    name: "Fossil White Dial Gold-Tone Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111104",
+    collection: defaultCollections[3],
+    short_description:
+      "Clean white dial with Roman numeral accents, multiple sub-dials, and a date display, paired with a warm gold-tone case and bracelet.",
+    description:
+      "Paired with a warm gold-tone case and matching link bracelet, this watch features a clean white dial accented with gold-tone Roman numerals, baton markers, multiple sub-dials, and a date display.",
+    price_amount: 2499,
+    original_price_amount: 2899,
+    discount_percent: 14,
+    savings_label: "Save ₹400",
+    price_currency: "INR",
+    price_display: "₹2,499",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 1,
+    specs: [
+      { key: "Brand shown", value: "Fossil" },
+      { key: "Collection", value: "Limited Editions" },
+      { key: "Dial", value: "White dial with Roman numeral accents" },
+      { key: "Display", value: "Analog with multiple sub-dials and date display" },
+      { key: "Case and bracelet", value: "Gold-tone case and link bracelet" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333361",
+        product_id: "22222222-2222-4222-8222-222222222218",
+        storage_path: null,
+        url: "/assets/watches/limited-editions/fossil-white-dial-gold-tone-1.jpg",
+        alt_text: "Fossil White Dial Gold-Tone Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333362",
+        product_id: "22222222-2222-4222-8222-222222222218",
+        storage_path: null,
+        url: "/assets/watches/limited-editions/fossil-white-dial-gold-tone-2.jpg",
+        alt_text: "Fossil White Dial Gold-Tone Watch angled horizontal studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333363",
+        product_id: "22222222-2222-4222-8222-222222222218",
+        storage_path: null,
+        url: "/assets/watches/limited-editions/fossil-white-dial-gold-tone-3.jpg",
+        alt_text: "Fossil White Dial Gold-Tone Watch full vertical bracelet and clasp view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333364",
+        product_id: "22222222-2222-4222-8222-222222222218",
+        storage_path: null,
+        url: "/assets/watches/limited-editions/fossil-white-dial-gold-tone-4.jpg",
+        alt_text: "Fossil White Dial Gold-Tone Watch side profile showing crown, pushers, and gold-tone bracelet",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333365",
+        product_id: "22222222-2222-4222-8222-222222222218",
+        storage_path: null,
+        url: "/assets/watches/limited-editions/fossil-white-dial-gold-tone-5.jpg",
+        alt_text: "Fossil White Dial Gold-Tone Watch macro close-up of white dial, Roman numerals, and sub-dials",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T11:45:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
