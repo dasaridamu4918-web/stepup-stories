@@ -1715,6 +1715,92 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T13:00:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222224",
+    slug: "black-dial-gold-tone-watch",
+    name: "Black Dial Gold-Tone Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111103",
+    collection: defaultCollections[2],
+    short_description:
+      "Black dial with gold-tone hands, markers, and multiple sub-dials, paired with a gold-tone case and link bracelet.",
+    description:
+      "Finished with a warm gold-tone case and multi-link bracelet, this watch features a contrasting black dial accented with gold-tone hands and baton markers, multiple sub-dials, and an angled date display.",
+    price_amount: 2499,
+    original_price_amount: 2899,
+    discount_percent: 14,
+    savings_label: "Save ₹400",
+    price_currency: "INR",
+    price_display: "₹2,499",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 11,
+    specs: [
+      { key: "Collection", value: "Modern Minimal" },
+      { key: "Dial", value: "Black dial with gold-tone hands and markers" },
+      { key: "Case & Bracelet", value: "Gold-tone case and link bracelet" },
+      { key: "Display", value: "Analog with multiple sub-dials and date display" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333391",
+        product_id: "22222222-2222-4222-8222-222222222224",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/black-dial-gold-tone-1.png",
+        alt_text: "Black Dial Gold-Tone Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333392",
+        product_id: "22222222-2222-4222-8222-222222222224",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/black-dial-gold-tone-2.png",
+        alt_text: "Black Dial Gold-Tone Watch angled three-quarter studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333393",
+        product_id: "22222222-2222-4222-8222-222222222224",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/black-dial-gold-tone-3.png",
+        alt_text: "Black Dial Gold-Tone Watch top-down flat-lay view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333394",
+        product_id: "22222222-2222-4222-8222-222222222224",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/black-dial-gold-tone-4.png",
+        alt_text: "Black Dial Gold-Tone Watch side profile showing crown and pushers",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333395",
+        product_id: "22222222-2222-4222-8222-222222222224",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/black-dial-gold-tone-5.png",
+        alt_text: "Black Dial Gold-Tone Watch macro close-up of black dial and multiple sub-dials",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T13:15:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
