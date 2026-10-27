@@ -1628,6 +1628,93 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T12:45:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222223",
+    slug: "green-dial-fluted-bezel-date-watch",
+    name: "Green Dial Fluted-Bezel Date Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111103",
+    collection: defaultCollections[2],
+    short_description:
+      "Green dial with a fluted bezel, date window with a magnifying lens, and metal link bracelet.",
+    description:
+      "Designed with a rich green dial and Roman numeral markers, this watch features a classic fluted bezel, a 3 o'clock date window beneath a magnifying lens, and a multi-link metal bracelet.",
+    price_amount: 1499,
+    original_price_amount: 1699,
+    discount_percent: 12,
+    savings_label: "Save ₹200",
+    price_currency: "INR",
+    price_display: "₹1,499",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 10,
+    specs: [
+      { key: "Collection", value: "Modern Minimal" },
+      { key: "Dial", value: "Green dial with Roman numeral markers" },
+      { key: "Bezel", value: "Fluted bezel" },
+      { key: "Display", value: "Analog with magnified date window" },
+      { key: "Bracelet", value: "Metal link bracelet" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333386",
+        product_id: "22222222-2222-4222-8222-222222222223",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/green-dial-fluted-bezel-1.png",
+        alt_text: "Green Dial Fluted-Bezel Date Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333387",
+        product_id: "22222222-2222-4222-8222-222222222223",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/green-dial-fluted-bezel-2.png",
+        alt_text: "Green Dial Fluted-Bezel Date Watch angled three-quarter studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333388",
+        product_id: "22222222-2222-4222-8222-222222222223",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/green-dial-fluted-bezel-3.png",
+        alt_text: "Green Dial Fluted-Bezel Date Watch top-down flat-lay view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333389",
+        product_id: "22222222-2222-4222-8222-222222222223",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/green-dial-fluted-bezel-4.png",
+        alt_text: "Green Dial Fluted-Bezel Date Watch side profile showing crown and fluted bezel",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333390",
+        product_id: "22222222-2222-4222-8222-222222222223",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/green-dial-fluted-bezel-5.png",
+        alt_text: "Green Dial Fluted-Bezel Date Watch macro close-up of green dial and magnified date window",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T13:00:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
