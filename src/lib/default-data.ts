@@ -953,6 +953,94 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T10:35:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222215",
+    slug: "casio-edifice-blue-accent-chronograph-style-watch",
+    name: "Casio Edifice Blue-Accent Chronograph-Style Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111101",
+    collection: defaultCollections[0],
+    short_description:
+      "Dark-tone metal bracelet and case paired with a layered charcoal dial, blue accents, multiple sub-dials, and a date display.",
+    description:
+      "Paired with a dark-tone metal case and matching link bracelet, this watch features a layered charcoal dial highlighted by blue accents, multiple sub-dials, and a date display at 3 o'clock.",
+    price_amount: 2999,
+    original_price_amount: 3699,
+    discount_percent: 19,
+    savings_label: "Save ₹700",
+    price_currency: "INR",
+    price_display: "₹2,999",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 2,
+    specs: [
+      { key: "Brand shown", value: "Casio Edifice" },
+      { key: "Collection", value: "Signature" },
+      { key: "Dial", value: "Charcoal dial with blue accents" },
+      { key: "Display", value: "Analog with multiple sub-dials and date display" },
+      { key: "Case and bracelet", value: "Dark-tone metal case and link bracelet" },
+      { key: "Dial marking", value: "WR 100M (visible on dial)" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333348",
+        product_id: "22222222-2222-4222-8222-222222222215",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-edifice-blue-accent-1.jpg",
+        alt_text: "Casio Edifice Blue-Accent Chronograph-Style Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333349",
+        product_id: "22222222-2222-4222-8222-222222222215",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-edifice-blue-accent-2.jpg",
+        alt_text: "Casio Edifice Blue-Accent Chronograph-Style Watch angled horizontal studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333350",
+        product_id: "22222222-2222-4222-8222-222222222215",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-edifice-blue-accent-3.jpg",
+        alt_text: "Casio Edifice Blue-Accent Chronograph-Style Watch side profile showing crown, blue pusher, and clasp",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333351",
+        product_id: "22222222-2222-4222-8222-222222222215",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-edifice-blue-accent-4.jpg",
+        alt_text: "Casio Edifice Blue-Accent Chronograph-Style Watch full vertical bracelet and clasp view",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333352",
+        product_id: "22222222-2222-4222-8222-222222222215",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-edifice-blue-accent-5.jpg",
+        alt_text: "Casio Edifice Blue-Accent Chronograph-Style Watch macro close-up of charcoal dial and blue accents",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T11:00:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
