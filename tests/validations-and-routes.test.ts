@@ -8,6 +8,7 @@ import {
 import { resetRateLimitsForTest } from "@/lib/rate-limit";
 import { POST as postEnquiry } from "@/app/api/enquiries/route";
 import { POST as postNewsletter } from "@/app/api/newsletter/route";
+import { buildMobileCatalog } from "@/lib/mobile-catalog";
 
 describe("STEPUP STORIES Zod Validation & Input Sanitization", () => {
   it("strips HTML/script tags from user input", () => {
@@ -145,5 +146,23 @@ describe("STEPUP STORIES Form API Routes (Enquiry & Newsletter)", () => {
     };
     expect(secondJson.ok).toBe(true);
     expect(secondJson.alreadySubscribed).toBe(true);
+  });
+
+  it("buildMobileCatalog returns 20 photo-backed watches with accurate INR savings and generic names when brand_verified is false", () => {
+    const catalog = buildMobileCatalog("https://stepup-stories.vercel.app");
+    expect(catalog.collections.length).toBe(5);
+    expect(catalog.products.length).toBe(20);
+
+    for (const prod of catalog.products) {
+      expect(prod.price_currency).toBe("INR");
+      expect(prod.price_amount).toBeGreaterThan(0);
+      expect(prod.original_price_amount).toBeGreaterThanOrEqual(prod.price_amount);
+      expect(prod.savings_amount).toBe(
+        prod.original_price_amount - prod.price_amount
+      );
+      expect(prod.images.length).toBeGreaterThan(0);
+      expect(prod.brand_verified).toBe(false);
+      expect(prod.name).toBe(prod.generic_name);
+    }
   });
 });

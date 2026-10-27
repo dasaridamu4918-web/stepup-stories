@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: Is user signed in?
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper: Role-based access check for store admins
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        )
+      );
+    }
+
+    // Helper: Validate Indian PIN code (6 digits, starts 1-9) and 10-digit Indian phone
+    function isValidIndianAddress(addr) {
+      return addr is map
+        && addr.full_name is string && addr.full_name.size() >= 2
+        && addr.phone is string && addr.phone.matches('^[6-9][0-9]{9}$')
+        && addr.pincode is string && addr.pincode.matches('^[1-9][0-9]{5}$')
+        && addr.address_line1 is string && addr.address_line1.size() >= 3
+        && addr.city is string && addr.city.size() >= 2
+        && addr.state is string && addr.state.size() >= 2;
+    }
+
+    // 1. Collections: Public read, Admin-only write
+    match /collections/{collectionId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // 2. Products: Public read, Admin-only write
+    // Enforces that brand_verified is boolean and prices are positive INR numbers
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.price_amount is number
+        && request.resource.data.price_amount > 0
+        && request.resource.data.original_price_amount is number
+        && request.resource.data.original_price_amount >= request.resource.data.price_amount
+        && request.resource.data.brand_verified is bool
+        && request.resource.data.stock_quantity is number
+        && request.resource.data.stock_quantity >= 0;
+      allow delete: if isAdmin();
+    }
+
+    // 3. Users: Users can read/update their own profile (except role elevation); Admins can read/write all
+    match /users/{userId} {
+      allow read: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'customer';
+      allow update: if (
+        isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role
+      ) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 4. Wishlists: Signed-in users manage their own wishlist document
+    match /wishlists/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // 5. Orders: Supports both Guest Checkout and Authenticated Checkout
+    match /orders/{orderId} {
+      // Customers can create an order with valid Indian delivery address & initial "placed"/"confirmed" status
+      allow create: if isValidIndianAddress(request.resource.data.shipping_address)
+        && request.resource.data.currency == 'INR'
+        && request.resource.data.total_payable is number
+        && request.resource.data.total_payable > 0
+        && request.resource.data.payment_method in ['cod', 'razorpay']
+        && request.resource.data.status in ['placed', 'confirmed'];
+
+      // Signed-in users can read their own orders; guests can read a specific order by ID; admins can read all
+      allow get: if true;
+      allow list: if isAdmin() || (isSignedIn() && resource.data.user_id == request.auth.uid);
+
+      // Only admins (or Cloud Functions with Admin SDK) can update order status, stock, or payment state
+      allow update, delete: if isAdmin();
+    }
+  }
+}

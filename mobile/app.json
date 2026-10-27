@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "STEPUP STORIES",
+    "slug": "stepup-stories",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#07090B",
+    "primaryColor": "#D4B475",
+    "splash": {
+      "backgroundColor": "#07090B",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stepupstories.watchstore",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow STEPUP STORIES Admin to select watch product photos for the store catalog."
+      }
+    },
+    "android": {
+      "package": "com.stepupstories.watchstore",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#07090B"
+      },
+      "permissions": [
+        "INTERNET",
+        "READ_MEDIA_IMAGES"
+      ]
+    },
+    "extra": {
+      "storeWebsiteUrl": "https://stepup-stories.vercel.app"
+    }
+  }
+}
