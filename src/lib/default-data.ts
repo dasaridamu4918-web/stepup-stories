@@ -525,6 +525,94 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T08:30:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222210",
+    slug: "fossil-black-dial-multi-dial-watch",
+    name: "Fossil Black Dial Multi-Dial Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111103",
+    collection: defaultCollections[2],
+    short_description:
+      "A bold black dial, textured bezel and warm gold-tone accents give this watch a refined look, paired with a classic brown leather-style strap.",
+    description:
+      "A bold black dial, textured bezel and warm gold-tone accents give this watch a refined look. The brown strap adds a classic touch, while the multi-dial layout and date window bring extra detail to the face.",
+    price_amount: 1799,
+    original_price_amount: 2399,
+    discount_percent: 25,
+    savings_label: "Save ₹600",
+    price_currency: "INR",
+    price_display: "₹1,799",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 6,
+    specs: [
+      { key: "Brand shown", value: "Fossil" },
+      { key: "Collection", value: "Modern Minimal" },
+      { key: "Display", value: "Analog, with multiple sub-dials and date window" },
+      { key: "Dial and bezel", value: "Black with gold-tone accents" },
+      { key: "Strap", value: "Brown, leather-style" },
+      { key: "Style", value: "Modern and minimal" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333324",
+        product_id: "22222222-2222-4222-8222-222222222210",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/fossil-black-dial-multi-dial-1.jpg",
+        alt_text: "Fossil Black Dial Multi-Dial Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333325",
+        product_id: "22222222-2222-4222-8222-222222222210",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/fossil-black-dial-multi-dial-2.jpg",
+        alt_text: "Fossil Black Dial Multi-Dial Watch angled studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333326",
+        product_id: "22222222-2222-4222-8222-222222222210",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/fossil-black-dial-multi-dial-3.jpg",
+        alt_text: "Fossil Black Dial Multi-Dial Watch full brown strap and buckle view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333327",
+        product_id: "22222222-2222-4222-8222-222222222210",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/fossil-black-dial-multi-dial-4.jpg",
+        alt_text: "Fossil Black Dial Multi-Dial Watch low-angle side profile view",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333328",
+        product_id: "22222222-2222-4222-8222-222222222210",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/fossil-black-dial-multi-dial-5.jpg",
+        alt_text: "Fossil Black Dial Multi-Dial Watch macro close-up of black dial, sub-dials and textured bezel",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T09:00:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
