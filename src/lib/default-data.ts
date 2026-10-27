@@ -700,6 +700,94 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T09:30:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222212",
+    slug: "tissot-chronograph-style-watch",
+    name: "Tissot Chronograph-Style Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111105",
+    collection: defaultCollections[4],
+    short_description:
+      "A sporty multi-dial face, tachymeter-style bezel markings and black strap give this watch a bold, versatile look.",
+    description:
+      "A sporty multi-dial face, tachymeter-style bezel markings and black strap give this watch a bold, versatile look. The photos show both black- and white-dial versions.",
+    price_amount: 1499,
+    original_price_amount: 1699,
+    discount_percent: 12,
+    savings_label: "Save ₹200",
+    price_currency: "INR",
+    price_display: "₹1,499",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 8,
+    specs: [
+      { key: "Brand shown", value: "Tissot 1853" },
+      { key: "Collection", value: "Everyday Icons" },
+      { key: "Display", value: "Analog with sub-dials and date window" },
+      { key: "Bezel", value: "Tachymeter-style markings" },
+      { key: "Strap", value: "Black, leather-style appearance" },
+      { key: "Style", value: "Sporty everyday" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333334",
+        product_id: "22222222-2222-4222-8222-222222222212",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/tissot-chronograph-style-1.jpg",
+        alt_text: "Tissot Chronograph-Style Watch angled studio view showing black textured dial and black strap",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333335",
+        product_id: "22222222-2222-4222-8222-222222222212",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/tissot-chronograph-style-2.jpg",
+        alt_text: "Tissot Chronograph-Style Watch full flat-lay view with black leather-style strap",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333336",
+        product_id: "22222222-2222-4222-8222-222222222212",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/tissot-chronograph-style-3.jpg",
+        alt_text: "Tissot Chronograph-Style Watch side profile showing crown and pushers",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333337",
+        product_id: "22222222-2222-4222-8222-222222222212",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/tissot-chronograph-style-4.jpg",
+        alt_text: "Tissot Chronograph-Style Watch macro close-up of black dial, sub-dials and tachymeter bezel",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333338",
+        product_id: "22222222-2222-4222-8222-222222222212",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/tissot-chronograph-style-5.jpg",
+        alt_text: "Tissot Chronograph-Style Watch white-dial version front view",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T10:00:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
