@@ -104,6 +104,86 @@ export const defaultCollections: CollectionRecord[] = [
 
 export const defaultProducts: ProductRecord[] = [
   {
+    id: "22222222-2222-4222-8222-222222222200",
+    slug: "casio-g-shock-utility-green",
+    name: "Casio G-SHOCK Utility Green",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111101",
+    collection: defaultCollections[0],
+    short_description:
+      "Octagonal matte black bezel paired with a utility olive green case and strap, featuring a dual-display analog-digital dial.",
+    description:
+      "Presented in the Signature collection, the Casio G-SHOCK Utility Green pairs a sculpted octagonal matte black bezel with an olive green case and matching strap. Its multi-layered matte black dial combines luminous central hands, a 9 o'clock day indicator subdial, and a negative digital LCD display with side push-button controls.",
+    price_amount: 1839,
+    original_price_amount: 2299,
+    discount_percent: 20,
+    price_currency: "INR",
+    price_display: "₹1,839",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 1,
+    specs: [
+      { key: "Brand", value: "Casio G-SHOCK" },
+      { key: "Collection", value: "Signature" },
+      {
+        key: "Display",
+        value: "Analog-Digital (Dual-Hand Analog, Day Subdial & Negative LCD)"
+      },
+      { key: "Bezel", value: "Octagonal Matte Black Bezel" },
+      { key: "Case & Strap", value: "Utility Olive Green" },
+      { key: "Dial Markings", value: "WR 20BAR, DST, HND, MUTE, AL, SIG" },
+      { key: "Controls", value: "4 Side Push-Buttons (Light, Start, Mode, Adjust)" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333301",
+        product_id: "22222222-2222-4222-8222-222222222200",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-g-shock-utility-green-1.jpg",
+        alt_text: "Casio G-SHOCK Utility Green front studio view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333302",
+        product_id: "22222222-2222-4222-8222-222222222200",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-g-shock-utility-green-2.jpg",
+        alt_text: "Casio G-SHOCK Utility Green angled three-quarter view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333303",
+        product_id: "22222222-2222-4222-8222-222222222200",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-g-shock-utility-green-3.jpg",
+        alt_text: "Casio G-SHOCK Utility Green side profile and pushers view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333304",
+        product_id: "22222222-2222-4222-8222-222222222200",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-g-shock-utility-green-4.jpg",
+        alt_text: "Casio G-SHOCK Utility Green macro dial close-up",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T06:30:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
@@ -120,7 +200,7 @@ export const defaultProducts: ProductRecord[] = [
     availability_status: "available",
     featured: true,
     published: true,
-    sort_order: 1,
+    sort_order: 2,
     specs: [],
     images: [],
     created_at: "2026-10-24T00:00:00.000Z"

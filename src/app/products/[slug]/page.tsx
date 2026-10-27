@@ -79,6 +79,21 @@ export default async function ProductDetailPage({
         }).format(product.price_amount)
       : null);
 
+  const formattedOriginalPrice =
+    typeof product.original_price_amount === "number" &&
+    product.original_price_amount > 0
+      ? new Intl.NumberFormat("en-IN", {
+          style: "currency",
+          currency: product.price_currency || "INR",
+          maximumFractionDigits: 0
+        }).format(product.original_price_amount)
+      : null;
+
+  const discountBadge =
+    typeof product.discount_percent === "number" && product.discount_percent > 0
+      ? `${product.discount_percent}% OFF`
+      : null;
+
   // Structured data (JSON-LD) only using real fields that exist in the database
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -192,9 +207,21 @@ export default async function ProductDetailPage({
 
             {/* Price (Only rendered if present in database) */}
             {formattedPrice && (
-              <p className="mt-5 font-serif text-2xl font-semibold text-gold-bright">
-                {formattedPrice}
-              </p>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {formattedOriginalPrice && (
+                  <span className="font-serif text-xl text-cream-muted line-through">
+                    {formattedOriginalPrice}
+                  </span>
+                )}
+                <p className="font-serif text-3xl font-semibold text-gold-bright">
+                  {formattedPrice}
+                </p>
+                {discountBadge && (
+                  <span className="rounded border border-gold/50 bg-burgundy/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-gold-bright">
+                    {discountBadge}
+                  </span>
+                )}
+              </div>
             )}
 
             {product.description && (

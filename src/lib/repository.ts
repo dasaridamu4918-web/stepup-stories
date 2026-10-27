@@ -137,6 +137,18 @@ function normalizeProductRow(
         : row.price_amount
           ? Number(row.price_amount)
           : null,
+    original_price_amount:
+      typeof row.original_price_amount === "number"
+        ? row.original_price_amount
+        : row.original_price_amount
+          ? Number(row.original_price_amount)
+          : null,
+    discount_percent:
+      typeof row.discount_percent === "number"
+        ? row.discount_percent
+        : row.discount_percent
+          ? Number(row.discount_percent)
+          : null,
     price_currency: row.price_currency ? String(row.price_currency) : null,
     price_display: row.price_display ? String(row.price_display) : null,
     availability_status:
@@ -448,7 +460,11 @@ export async function saveAdminProduct(product: Partial<ProductRecord> & { name:
     collection_id: product.collection_id ?? null,
     short_description: product.short_description ?? null,
     description: product.description ?? null,
-    price_amount: product.price_amount ?? null,
+    price_amount: product.price_amount ?? existing?.price_amount ?? null,
+    original_price_amount:
+      product.original_price_amount ?? existing?.original_price_amount ?? null,
+    discount_percent:
+      product.discount_percent ?? existing?.discount_percent ?? null,
     price_currency: product.price_currency ?? "INR",
     price_display: product.price_display ?? null,
     availability_status: product.availability_status ?? "available",

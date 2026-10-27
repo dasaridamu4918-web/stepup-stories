@@ -45,6 +45,8 @@ export interface ProductRecord {
   short_description: string | null;
   description: string | null;
   price_amount: number | null;
+  original_price_amount?: number | null;
+  discount_percent?: number | null;
   price_currency: string | null;
   price_display: string | null;
   availability_status: AvailabilityStatus;

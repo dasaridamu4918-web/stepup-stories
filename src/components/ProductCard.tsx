@@ -39,6 +39,21 @@ export function ProductCard({ product }: { product: ProductRecord }) {
         }).format(product.price_amount)
       : null);
 
+  const formattedOriginalPrice =
+    typeof product.original_price_amount === "number" &&
+    product.original_price_amount > 0
+      ? new Intl.NumberFormat("en-IN", {
+          style: "currency",
+          currency: product.price_currency || "INR",
+          maximumFractionDigits: 0
+        }).format(product.original_price_amount)
+      : null;
+
+  const discountBadge =
+    typeof product.discount_percent === "number" && product.discount_percent > 0
+      ? `${product.discount_percent}% OFF`
+      : null;
+
   const badge =
     availabilityBadgeMap[product.availability_status] ?? availabilityBadgeMap.available;
 
@@ -55,6 +70,12 @@ export function ProductCard({ product }: { product: ProductRecord }) {
         >
           {badge.label}
         </span>
+
+        {discountBadge && (
+          <span className="absolute right-3.5 top-3.5 z-10 rounded border border-gold/50 bg-burgundy/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-gold-bright backdrop-blur-sm">
+            {discountBadge}
+          </span>
+        )}
 
         {primaryImage ? (
           <Image
@@ -108,9 +129,21 @@ export function ProductCard({ product }: { product: ProductRecord }) {
 
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-gold/15 pt-4">
           {formattedPrice ? (
-            <span className="text-sm font-semibold tracking-wider text-gold-bright">
-              {formattedPrice}
-            </span>
+            <div className="flex flex-wrap items-baseline gap-2">
+              {formattedOriginalPrice && (
+                <span className="text-xs text-cream-muted line-through">
+                  {formattedOriginalPrice}
+                </span>
+              )}
+              <span className="text-base font-semibold tracking-wider text-gold-bright">
+                {formattedPrice}
+              </span>
+              {discountBadge && (
+                <span className="rounded border border-gold/40 bg-burgundy/85 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gold-bright">
+                  {discountBadge}
+                </span>
+              )}
+            </div>
           ) : (
             <span className="text-xs uppercase tracking-[0.14em] text-cream-muted">
               Private Concierge
