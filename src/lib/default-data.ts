@@ -261,6 +261,94 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T07:05:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222207",
+    slug: "hoblet-emerald-green-dial-statement-watch",
+    name: "HOBLET — Emerald Green Dial Statement Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111105",
+    collection: defaultCollections[4],
+    short_description:
+      "Green dial with subdial-style details and a date window, paired with a dark textured bezel, rose-gold-tone case, and green strap.",
+    description:
+      "Presented in the Everyday Icons collection, the HOBLET — Emerald Green Dial Statement Watch features a green dial with subdial-style details and a 6 o'clock date window. Framed by a dark textured bezel and a rose-gold-tone case, it is fitted with a matching green strap with tonal stitching.",
+    price_amount: 1299,
+    original_price_amount: 1699,
+    discount_percent: 24,
+    savings_label: "Save ₹400",
+    price_currency: "INR",
+    price_display: "₹1,299",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 3,
+    specs: [
+      { key: "Collection", value: "Everyday Icons" },
+      { key: "Dial", value: "Green Dial with Subdial-Style Details" },
+      { key: "Calendar", value: "Date Window at 6 O'Clock" },
+      { key: "Bezel", value: "Dark Textured Bezel" },
+      { key: "Case", value: "Rose-Gold-Tone Case" },
+      { key: "Strap", value: "Green Strap with Tonal Stitching" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333309",
+        product_id: "22222222-2222-4222-8222-222222222207",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/hoblet-emerald-green-1.jpg",
+        alt_text: "HOBLET — Emerald Green Dial Statement Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333310",
+        product_id: "22222222-2222-4222-8222-222222222207",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/hoblet-emerald-green-2.jpg",
+        alt_text: "HOBLET — Emerald Green Dial Statement Watch horizontal studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333311",
+        product_id: "22222222-2222-4222-8222-222222222207",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/hoblet-emerald-green-3.jpg",
+        alt_text: "HOBLET — Emerald Green Dial Statement Watch full strap and case view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333312",
+        product_id: "22222222-2222-4222-8222-222222222207",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/hoblet-emerald-green-4.jpg",
+        alt_text: "HOBLET — Emerald Green Dial Statement Watch low-angle side profile view",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333313",
+        product_id: "22222222-2222-4222-8222-222222222207",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/hoblet-emerald-green-5.jpg",
+        alt_text: "HOBLET — Emerald Green Dial Statement Watch macro close-up of green dial and textured bezel",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T07:30:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
