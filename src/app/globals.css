@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Luxury Dark Charcoal Base, Champagne Gold Accents, Cream Text, Restrained Burgundy */
+  --bg-obsidian: #07090b;
+  --bg-charcoal: #0f1317;
+  --bg-surface: #151a20;
+  --bg-elevated: #1c222a;
+
+  --gold-champagne: #d4b475;
+  --gold-bright: #ead3a3;
+  --gold-muted: #9e8452;
+
+  --burgundy-accent: #8f1d35;
+  --burgundy-highlight: #c4304e;
+
+  /* WCAG AA Checked Contrast on #07090B and #151A20 */
+  --text-primary: #f6f3ec;
+  --text-secondary: #c9c4b9;
+  --text-muted: #9a9488;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--bg-obsidian);
+  color: var(--text-primary);
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  background-color: var(--bg-obsidian);
+  color: var(--text-primary);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  top: -120px;
+  left: 1rem;
+  z-index: 9999;
+  background: var(--gold-bright);
+  color: var(--bg-obsidian);
+  padding: 0.75rem 1.25rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}

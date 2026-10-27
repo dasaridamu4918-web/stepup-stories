@@ -1,115 +1,77 @@
-# STEPUP STORIES — Luxury Timepiece Collection Website
+# STEPUP STORIES — Full-Stack Luxury Timepiece Website (Next.js + TypeScript + Supabase)
 
-A dark-themed, responsive luxury watch showcase built with **Vite + Vanilla HTML, CSS Variables, and ES Modules** for **STEPUP STORIES**.
+A mobile-first, enquiry-only luxury horology website and Maison Admin Portal built for **STEPUP STORIES**.
 
 ---
 
-## Quick Start
+## Stack & Architecture
+
+- **Framework:** Next.js 14 (App Router) + React 18 + TypeScript (`strict: true`)
+- **Styling & Design Tokens:** Tailwind CSS + CSS Custom Properties (`src/app/globals.css`) with WCAG AA contrast (`#07090B` obsidian base, `#D4B475` champagne gold, `#F6F3EC` cream, `#8F1D35` burgundy accent) and `next/font` (`Cormorant Garamond` + `Plus Jakarta Sans`)
+- **Database, Auth & Storage:** Supabase (`Postgres`, `Auth`, `Storage`) with Row Level Security (`supabase/migrations/0001_initial_schema.sql`)
+- **Validation & Forms:** Shared client/server `Zod` schemas (`src/lib/validations.ts`) + `React Hook Form`
+- **Spam Protection & Security:** Server-side Cloudflare Turnstile verification, honeypot field, sliding-window IP rate limiting (`src/lib/rate-limit.ts`), input sanitization, and strict CSP/security headers (`next.config.mjs`)
+- **Server-Side Email Notifications:** Resend API (`src/lib/email.ts`)
+- **Preserved Brand Assets & Motion:** Untouched official logo (`/public/assets/brand/logo.jpg`), muted lazy-loaded hero animation (`/public/assets/brand/logo-animation.mp4`), and the 240-frame scroll-controlled timepiece sequence (`/public/assets/story/frames/` and `frames-mobile/`)
+
+---
+
+## Local Development Setup
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+2. **Configure environment variables:**
+   Copy `.env.example` to `.env.local` and fill in your credentials:
+   ```bash
+   cp .env.example .env.local
+   ```
+3. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+   Open `http://localhost:3000`.
+
+---
+
+## Supabase Setup & Database Migrations
+
+1. Create a new project at [https://supabase.com/dashboard](https://supabase.com/dashboard).
+2. Open the **SQL Editor** in your Supabase dashboard, paste the contents of **`supabase/migrations/0001_initial_schema.sql`**, and click **Run**.
+   - This creates all 8 tables (`admins`, `collections`, `products`, `product_images`, `product_specs`, `enquiries`, `newsletter_subscribers`, `site_settings`), enables Row Level Security (RLS) on every table, and creates the public-read/admin-write `product-images` Storage bucket.
+3. Copy your project's **Project URL**, **anon public key**, and **service_role secret key** from **Project Settings -> API** into `.env.local`.
+
+---
+
+## Creating the First Admin Account
+
+Being authenticated in Supabase Auth alone does **not** grant access to `/admin`—every request and middleware check verifies that the user's ID or email exists in `public.admins`.
+
+To seed your first superadmin account and the 5 STEPUP STORIES collections:
+
+1. Set `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `INITIAL_ADMIN_EMAIL`, and `INITIAL_ADMIN_PASSWORD` in `.env.local`.
+2. Run:
+   ```bash
+   npm run seed:admin
+   ```
+3. Sign in at `http://localhost:3000/admin/login` (or `https://stepup-stories.vercel.app/admin/login`).
+
+---
+
+## Testing, Type-Checking & Production Build
 
 ```bash
-npm install
-npm run dev
-```
-
-To build for production:
-
-```bash
-npm run build
-npm run preview
+npm run typecheck   # Strict TypeScript check (tsc --noEmit)
+npm run lint        # Next.js ESLint check
+npm run test        # Vitest unit & API route tests
+npm run build       # Production Next.js build
 ```
 
 ---
 
-## Project Folder Structure
+## Deploying to Vercel
 
-```text
-stepup-stories/
-├── index.html                  # Semantic HTML layout & sections
-├── public/
-│   └── assets/
-│       ├── brand/
-│       │   ├── logo.jpg            # Supplied official logo (untouched)
-│       │   └── logo-animation.mp4  # Supplied official logo animation (untouched)
-│       └── watches/                # Drop your watch photos into these folders:
-│           ├── signature/
-│           ├── automatic-classics/
-│           ├── modern-minimal/
-│           ├── limited-editions/
-│           └── everyday-icons/
-└── src/
-    ├── main.js                 # Carousels, search, filters, modal & reduced-motion logic
-    ├── data/
-    │   └── products.js         # Single source of truth for watches, collections & links
-    └── styles/
-        └── main.css            # CSS variables (palette, fonts, spacing) & responsive styles
-```
-
----
-
-## How to Swap in Your Watch Photos
-
-1. Open `public/assets/watches/` and place your product photos inside the matching collection subfolder:
-   - `public/assets/watches/signature/signature-01-front.jpg`
-   - `public/assets/watches/automatic-classics/automatic-01-front.jpg`
-   - `public/assets/watches/modern-minimal/minimal-01-front.jpg`
-   - `public/assets/watches/limited-editions/limited-01-front.jpg`
-   - `public/assets/watches/everyday-icons/everyday-01-front.jpg`
-2. **Automatic Fallback & Swap:** While a photo file is not yet present on disk, the site automatically renders a dark-gradient luxury placeholder with an octagonal watch silhouette and the expected file path. As soon as you drop a matching `.jpg` / `.png` / `.webp` file into the folder (or update the path in `src/data/products.js`), the real photo automatically displays in place of the placeholder.
-
----
-
-## How to Edit Product Data, Specifications & Links
-
-All watch names, descriptions, prices, collection metadata, gallery views, editable specification rows, and contact/social links live in one file:
-
-- **`src/data/products.js`**
-
-### Editing a Watch Entry
-```js
-{
-  id: "signature-01",
-  name: "Your Official Watch Name",
-  reference: "REF. SUS-SIG-01",
-  collectionId: "signature",
-  collectionName: "Signature",
-  shortDescription: "Short summary shown on the product card.",
-  description: "Full narrative shown inside the product detail modal.",
-  price: "Price on request", // Or your formatted price
-  featured: true,            // true = appears in Featured Timepieces carousel
-  badge: "Signature Piece",
-  image: "/assets/watches/signature/signature-01-front.jpg",
-  gallery: [
-    { src: "/assets/watches/signature/signature-01-front.jpg", caption: "Front Dial View" },
-    { src: "/assets/watches/signature/signature-01-angle.jpg", caption: "Case Profile View" }
-  ],
-  details: [
-    { label: "Reference", value: "SUS-SIG-01" },
-    { label: "Case Dimensions", value: "Your specification" }
-  ],
-  enquiryUrl: "https://wa.me/YOUR_NUMBER?text=I%20would%20like%20to%20enquire%20about%20Signature%2001",
-  buyUrl: "mailto:concierge@yourdomain.com?subject=Acquisition%20Request"
-}
-```
-
-### Customizing Colours, Fonts & Spacing
-Open **`src/styles/main.css`** and edit the `:root` CSS variables at the top of the file:
-- `--bg-obsidian`, `--bg-charcoal`, `--bg-surface` (near-black and charcoal surfaces)
-- `--gold-champagne`, `--gold-bright`, `--gold-muted` (champagne-gold accents inspired by the logo)
-- `--burgundy-accent`, `--burgundy-highlight` (restrained burgundy accents)
-- `--font-serif`, `--font-sans` (heading and body font stacks)
-
----
-
-## Scroll-Controlled 240-Frame Sequence Story Configuration
-
-The interactive scroll-scrubbed timepiece sequence (placed immediately after the Hero and before the Collections) is configured in a single file:
-
-- **`src/data/storySequenceConfig.js`**
-
-From that file you can edit:
-- `frameCount`: Total frames (`240`)
-- `desktopPathPattern`: `./assets/story/frames/frame-{index}.webp` (`720x1280` WebP)
-- `mobilePathPattern`: `./assets/story/frames-mobile/frame-{index}.webp` (`540x960` WebP, `4.24 MB` total)
-- `scrollLengthDesktop` (`"360vh"`) and `scrollLengthMobile` (`"260vh"`)
-- `reducedMotionFrame` (`120` — static exploded-view frame displayed when `prefers-reduced-motion: reduce` is enabled)
-- `captions`: Array of chapter cards with `startFrame`, `endFrame`, `eyebrow`, `title`, and `body`.
+1. Push the repository to GitHub (`main` branch).
+2. In your Vercel project dashboard (**Settings -> Environment Variables**), add all variables listed in `.env.example`.
+3. Trigger a deployment—Vercel automatically detects Next.js and deploys all App Router pages and serverless API routes.

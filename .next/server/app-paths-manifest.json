@@ -1,0 +1,18 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/admin/login/page": "app/admin/login/page.js",
+  "/api/admin/catalog/route": "app/api/admin/catalog/route.js",
+  "/api/admin/session/route": "app/api/admin/session/route.js",
+  "/api/enquiries/route": "app/api/enquiries/route.js",
+  "/api/newsletter/unsubscribe/route": "app/api/newsletter/unsubscribe/route.js",
+  "/robots.txt/route": "app/robots.txt/route.js",
+  "/sitemap.xml/route": "app/sitemap.xml/route.js",
+  "/api/newsletter/route": "app/api/newsletter/route.js",
+  "/catalog/page": "app/catalog/page.js",
+  "/collections/page": "app/collections/page.js",
+  "/about/page": "app/about/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/concierge/page": "app/concierge/page.js",
+  "/page": "app/page.js",
+  "/products/[slug]/page": "app/products/[slug]/page.js"
+}
