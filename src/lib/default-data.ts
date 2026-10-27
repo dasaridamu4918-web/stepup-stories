@@ -437,6 +437,94 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T08:00:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222209",
+    slug: "tommy-hilfiger-sport-inspired-analog-watch",
+    name: "Tommy Hilfiger Sport-Inspired Analog Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111105",
+    collection: defaultCollections[4],
+    short_description:
+      "A clean black dial, polished markers and red, white and blue strap accents give this watch a sporty everyday look.",
+    description:
+      "A clean black dial, polished markers and red, white and blue strap accents give this watch a sporty everyday look. It has an analog display and a date window.",
+    price_amount: 1499,
+    original_price_amount: 1799,
+    discount_percent: 17,
+    savings_label: "Save ₹300",
+    price_currency: "INR",
+    price_display: "₹1,499",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 5,
+    specs: [
+      { key: "Brand shown", value: "Tommy Hilfiger" },
+      { key: "Collection", value: "Everyday Icons" },
+      { key: "Dial and case", value: "Black" },
+      { key: "Display", value: "Analog with date window" },
+      { key: "Strap", value: "Black with red, white and blue accents" },
+      { key: "Style", value: "Sporty everyday" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333319",
+        product_id: "22222222-2222-4222-8222-222222222209",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/tommy-hilfiger-sport-1.jpg",
+        alt_text: "Tommy Hilfiger Sport-Inspired Analog Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333320",
+        product_id: "22222222-2222-4222-8222-222222222209",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/tommy-hilfiger-sport-2.jpg",
+        alt_text: "Tommy Hilfiger Sport-Inspired Analog Watch horizontal studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333321",
+        product_id: "22222222-2222-4222-8222-222222222209",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/tommy-hilfiger-sport-3.jpg",
+        alt_text: "Tommy Hilfiger Sport-Inspired Analog Watch full strap and buckle view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333322",
+        product_id: "22222222-2222-4222-8222-222222222209",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/tommy-hilfiger-sport-4.jpg",
+        alt_text: "Tommy Hilfiger Sport-Inspired Analog Watch low-angle side profile view",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333323",
+        product_id: "22222222-2222-4222-8222-222222222209",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/tommy-hilfiger-sport-5.jpg",
+        alt_text: "Tommy Hilfiger Sport-Inspired Analog Watch macro close-up of black dial and date window",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T08:30:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
