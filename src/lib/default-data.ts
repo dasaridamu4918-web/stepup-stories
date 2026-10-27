@@ -788,6 +788,171 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T10:00:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222213",
+    slug: "red-accent-racing-chronograph-style-watch",
+    name: "Red-Accent Racing Chronograph-Style Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111105",
+    collection: defaultCollections[4],
+    short_description:
+      "Black watch with a dark textured dial, red dial accents, racing-style bezel markings, multiple sub-dials, a date window, and a black strap with red details.",
+    description:
+      "A black watch featuring a dark textured dial with red dial accents, racing-style bezel markings, multiple sub-dials, a date window, and a black strap with red details.",
+    price_amount: 1499,
+    original_price_amount: 1699,
+    discount_percent: 12,
+    savings_label: "Save ₹200",
+    price_currency: "INR",
+    price_display: "₹1,499",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 9,
+    specs: [
+      { key: "Collection", value: "Everyday Icons" },
+      { key: "Dial", value: "Dark textured dial with red accents" },
+      { key: "Display", value: "Analog with multiple sub-dials and date window" },
+      { key: "Bezel", value: "Racing-style bezel markings" },
+      { key: "Strap", value: "Black strap with red details" },
+      { key: "Style", value: "Sporty racing-inspired everyday" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333339",
+        product_id: "22222222-2222-4222-8222-222222222213",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/racing-chronograph-red-1.jpg",
+        alt_text: "Red-Accent Racing Chronograph-Style Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333340",
+        product_id: "22222222-2222-4222-8222-222222222213",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/racing-chronograph-red-2.jpg",
+        alt_text: "Red-Accent Racing Chronograph-Style Watch angled side profile view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333341",
+        product_id: "22222222-2222-4222-8222-222222222213",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/racing-chronograph-red-3.jpg",
+        alt_text: "Red-Accent Racing Chronograph-Style Watch full horizontal strap view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333342",
+        product_id: "22222222-2222-4222-8222-222222222213",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/racing-chronograph-red-4.jpg",
+        alt_text: "Red-Accent Racing Chronograph-Style Watch macro close-up of dark textured dial and red sub-dials",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T10:30:00.000Z"
+  },
+  {
+    id: "22222222-2222-4222-8222-222222222214",
+    slug: "orange-accent-racing-chronograph-style-watch",
+    name: "Orange-Accent Racing Chronograph-Style Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111105",
+    collection: defaultCollections[4],
+    short_description:
+      "Black watch with a dark textured dial, orange dial accents, racing-style bezel markings, multiple sub-dials, a date window, and a black strap with orange details.",
+    description:
+      "A black watch featuring a dark textured dial with orange dial accents, racing-style bezel markings, multiple sub-dials, a date window, and a black strap with orange details.",
+    price_amount: 1499,
+    original_price_amount: 1699,
+    discount_percent: 12,
+    savings_label: "Save ₹200",
+    price_currency: "INR",
+    price_display: "₹1,499",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 10,
+    specs: [
+      { key: "Collection", value: "Everyday Icons" },
+      { key: "Dial", value: "Dark textured dial with orange accents" },
+      { key: "Display", value: "Analog with multiple sub-dials and date window" },
+      { key: "Bezel", value: "Racing-style bezel markings" },
+      { key: "Strap", value: "Black strap with orange details" },
+      { key: "Style", value: "Sporty racing-inspired everyday" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333343",
+        product_id: "22222222-2222-4222-8222-222222222214",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/racing-chronograph-orange-1.jpg",
+        alt_text: "Orange-Accent Racing Chronograph-Style Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333344",
+        product_id: "22222222-2222-4222-8222-222222222214",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/racing-chronograph-orange-2.jpg",
+        alt_text: "Orange-Accent Racing Chronograph-Style Watch angled studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333345",
+        product_id: "22222222-2222-4222-8222-222222222214",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/racing-chronograph-orange-3.jpg",
+        alt_text: "Orange-Accent Racing Chronograph-Style Watch full vertical strap and buckle view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333346",
+        product_id: "22222222-2222-4222-8222-222222222214",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/racing-chronograph-orange-4.jpg",
+        alt_text: "Orange-Accent Racing Chronograph-Style Watch low-angle side profile view",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333347",
+        product_id: "22222222-2222-4222-8222-222222222214",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/racing-chronograph-orange-5.jpg",
+        alt_text: "Orange-Accent Racing Chronograph-Style Watch macro close-up of dark textured dial and orange sub-dials",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T10:35:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
