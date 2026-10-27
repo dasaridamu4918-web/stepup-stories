@@ -1281,6 +1281,181 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T11:45:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222219",
+    slug: "rado-diastar-gold-tone-automatic-watch",
+    name: "Rado DiaStar Gold-Tone Automatic Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111102",
+    collection: defaultCollections[1],
+    short_description:
+      "Sculpted gold-tone case and link bracelet paired with a champagne-colored dial, decorative markers, and a day-date display.",
+    description:
+      "Defined by a sculpted gold-tone case and matching link bracelet, this timepiece features a champagne-colored dial accented with decorative markers, a contrasting dark vertical center band, and a day-date display.",
+    price_amount: 3499,
+    original_price_amount: 3999,
+    discount_percent: 12.5,
+    savings_label: "Save ₹500",
+    price_currency: "INR",
+    price_display: "₹3,499",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 1,
+    specs: [
+      { key: "Brand shown", value: "Rado DiaStar" },
+      { key: "Collection", value: "Automatic Classics" },
+      { key: "Dial", value: "Champagne-colored dial with decorative markers" },
+      { key: "Display", value: "Analog with day-date display" },
+      { key: "Case and bracelet", value: "Gold-tone case and link bracelet" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333366",
+        product_id: "22222222-2222-4222-8222-222222222219",
+        storage_path: null,
+        url: "/assets/watches/automatic-classics/rado-diastar-gold-tone-1.jpg",
+        alt_text: "Rado DiaStar Gold-Tone Automatic Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333367",
+        product_id: "22222222-2222-4222-8222-222222222219",
+        storage_path: null,
+        url: "/assets/watches/automatic-classics/rado-diastar-gold-tone-2.jpg",
+        alt_text: "Rado DiaStar Gold-Tone Automatic Watch angled studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333368",
+        product_id: "22222222-2222-4222-8222-222222222219",
+        storage_path: null,
+        url: "/assets/watches/automatic-classics/rado-diastar-gold-tone-3.jpg",
+        alt_text: "Rado DiaStar Gold-Tone Automatic Watch full vertical bracelet and clasp view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333369",
+        product_id: "22222222-2222-4222-8222-222222222219",
+        storage_path: null,
+        url: "/assets/watches/automatic-classics/rado-diastar-gold-tone-4.jpg",
+        alt_text: "Rado DiaStar Gold-Tone Automatic Watch low-angle side profile view",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333370",
+        product_id: "22222222-2222-4222-8222-222222222219",
+        storage_path: null,
+        url: "/assets/watches/automatic-classics/rado-diastar-gold-tone-5.jpg",
+        alt_text: "Rado DiaStar Gold-Tone Automatic Watch macro close-up of champagne dial and day-date display",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T12:00:00.000Z"
+  },
+  {
+    id: "22222222-2222-4222-8222-222222222220",
+    slug: "white-dial-tonneau-style-dress-watch",
+    name: "White Dial Tonneau-Style Dress Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111103",
+    collection: defaultCollections[2],
+    short_description:
+      "Tonneau-shaped case with a light textured dial, oversized Arabic numerals, blue-tone hands, and a black textured strap.",
+    description:
+      "Shaped with a curved tonneau case, this dress watch showcases a light textured dial with oversized Arabic numerals, blue-tone hands, a 6 o'clock date window, and a black textured strap.",
+    price_amount: 2999,
+    original_price_amount: 3499,
+    discount_percent: 14,
+    savings_label: "Save ₹500",
+    price_currency: "INR",
+    price_display: "₹2,999",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 8,
+    specs: [
+      { key: "Collection", value: "Modern Minimal" },
+      { key: "Case", value: "Tonneau-shaped case" },
+      { key: "Dial", value: "Light textured dial with oversized Arabic numerals" },
+      { key: "Hands", value: "Blue-tone hands" },
+      { key: "Display", value: "Analog with 6 o'clock date window" },
+      { key: "Strap", value: "Black textured strap" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333371",
+        product_id: "22222222-2222-4222-8222-222222222220",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/white-dial-tonneau-dress-1.jpg",
+        alt_text: "White Dial Tonneau-Style Dress Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333372",
+        product_id: "22222222-2222-4222-8222-222222222220",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/white-dial-tonneau-dress-2.jpg",
+        alt_text: "White Dial Tonneau-Style Dress Watch angled horizontal studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333373",
+        product_id: "22222222-2222-4222-8222-222222222220",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/white-dial-tonneau-dress-3.jpg",
+        alt_text: "White Dial Tonneau-Style Dress Watch full vertical strap and buckle view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333374",
+        product_id: "22222222-2222-4222-8222-222222222220",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/white-dial-tonneau-dress-4.jpg",
+        alt_text: "White Dial Tonneau-Style Dress Watch side profile view",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333375",
+        product_id: "22222222-2222-4222-8222-222222222220",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/white-dial-tonneau-dress-5.jpg",
+        alt_text: "White Dial Tonneau-Style Dress Watch macro close-up of textured dial, Arabic numerals, and blue-tone hands",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T12:15:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
