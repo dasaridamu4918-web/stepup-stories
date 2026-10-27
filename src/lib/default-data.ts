@@ -1456,6 +1456,92 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T12:15:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222221",
+    slug: "blue-dial-multi-dial-watch",
+    name: "Blue Dial Multi-Dial Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111101",
+    collection: defaultCollections[0],
+    short_description:
+      "Concentric blue dial with three sub-dials and a date window, paired with a silver-tone multi-link bracelet.",
+    description:
+      "Paired with a silver-tone case and multi-link bracelet, this watch features a concentric blue dial accented with baton markers, multiple sub-dials, and a date window.",
+    price_amount: 3699,
+    original_price_amount: 3999,
+    discount_percent: 7.5,
+    savings_label: "Save ₹300",
+    price_currency: "INR",
+    price_display: "₹3,699",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 4,
+    specs: [
+      { key: "Collection", value: "Signature" },
+      { key: "Dial", value: "Blue dial with concentric ring detailing" },
+      { key: "Display", value: "Analog with multiple sub-dials and date window" },
+      { key: "Bracelet", value: "Silver-tone multi-link bracelet" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333376",
+        product_id: "22222222-2222-4222-8222-222222222221",
+        storage_path: null,
+        url: "/assets/watches/signature/blue-dial-multi-dial-1.jpg",
+        alt_text: "Blue Dial Multi-Dial Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333377",
+        product_id: "22222222-2222-4222-8222-222222222221",
+        storage_path: null,
+        url: "/assets/watches/signature/blue-dial-multi-dial-2.jpg",
+        alt_text: "Blue Dial Multi-Dial Watch angled three-quarter studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333378",
+        product_id: "22222222-2222-4222-8222-222222222221",
+        storage_path: null,
+        url: "/assets/watches/signature/blue-dial-multi-dial-3.jpg",
+        alt_text: "Blue Dial Multi-Dial Watch full vertical bracelet and clasp view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333379",
+        product_id: "22222222-2222-4222-8222-222222222221",
+        storage_path: null,
+        url: "/assets/watches/signature/blue-dial-multi-dial-4.jpg",
+        alt_text: "Blue Dial Multi-Dial Watch low-angle side profile view",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333380",
+        product_id: "22222222-2222-4222-8222-222222222221",
+        storage_path: null,
+        url: "/assets/watches/signature/blue-dial-multi-dial-5.jpg",
+        alt_text: "Blue Dial Multi-Dial Watch macro close-up of blue dial, sub-dials, and date window",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T12:30:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
