@@ -1118,6 +1118,82 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T11:15:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222217",
+    slug: "blue-rectangular-dial-watch",
+    name: "Blue Rectangular Dial Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111105",
+    collection: defaultCollections[4],
+    short_description:
+      "Rectangular blue dial with warm gold-tone hands and accents, framed by a dark-tone case and paired with a blue strap.",
+    description:
+      "Defined by a sleek rectangular blue dial with warm gold-tone hands and geometric inner-frame accents, this watch pairs a dark-tone rectangular case with a coordinated blue strap for a clean, contemporary silhouette.",
+    price_amount: 1499,
+    original_price_amount: 1699,
+    discount_percent: 12,
+    savings_label: "Save ₹200",
+    price_currency: "INR",
+    price_display: "₹1,499",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 11,
+    specs: [
+      { key: "Collection", value: "Everyday Icons" },
+      { key: "Dial", value: "Rectangular blue dial with gold-tone hands and accents" },
+      { key: "Display", value: "Two-hand analog" },
+      { key: "Case", value: "Dark-tone rectangular case" },
+      { key: "Strap", value: "Blue strap" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333357",
+        product_id: "22222222-2222-4222-8222-222222222217",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/blue-rectangular-dial-1.jpg",
+        alt_text: "Blue Rectangular Dial Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333358",
+        product_id: "22222222-2222-4222-8222-222222222217",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/blue-rectangular-dial-2.jpg",
+        alt_text: "Blue Rectangular Dial Watch angled horizontal studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333359",
+        product_id: "22222222-2222-4222-8222-222222222217",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/blue-rectangular-dial-3.jpg",
+        alt_text: "Blue Rectangular Dial Watch side profile showing dark-tone case and blue strap",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333360",
+        product_id: "22222222-2222-4222-8222-222222222217",
+        storage_path: null,
+        url: "/assets/watches/everyday-icons/blue-rectangular-dial-4.jpg",
+        alt_text: "Blue Rectangular Dial Watch macro close-up of rectangular blue dial and gold-tone accents",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T11:30:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
