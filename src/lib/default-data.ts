@@ -613,6 +613,93 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T09:00:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222211",
+    slug: "gucci-black-motif-dress-watch",
+    name: "Gucci Black Motif Dress Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111103",
+    collection: defaultCollections[2],
+    short_description:
+      "A textured black dial, gold-tone hands and decorative star and insect motifs paired with a ridged bezel and black strap.",
+    description:
+      "A textured black dial, gold-tone hands and decorative star and insect motifs give this watch a distinctive look. The ridged bezel and black strap complete its refined style.",
+    price_amount: 2499,
+    original_price_amount: 2799,
+    discount_percent: 11,
+    savings_label: "Save ₹300",
+    price_currency: "INR",
+    price_display: "₹2,499",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 7,
+    specs: [
+      { key: "Collection", value: "Modern Minimal" },
+      { key: "Display", value: "Analog" },
+      { key: "Dial", value: "Black with gold-tone decorative details" },
+      { key: "Bezel", value: "Ridged design" },
+      { key: "Strap", value: "Black, leather-style appearance" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333329",
+        product_id: "22222222-2222-4222-8222-222222222211",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/gucci-black-motif-dress-1.jpg",
+        alt_text: "Gucci Black Motif Dress Watch front overhead view of textured black dial and ridged bezel",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333330",
+        product_id: "22222222-2222-4222-8222-222222222211",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/gucci-black-motif-dress-2.jpg",
+        alt_text: "Gucci Black Motif Dress Watch angled studio view with reflection and black strap",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333331",
+        product_id: "22222222-2222-4222-8222-222222222211",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/gucci-black-motif-dress-3.jpg",
+        alt_text: "Gucci Black Motif Dress Watch side profile showing crown and ridged bezel",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333332",
+        product_id: "22222222-2222-4222-8222-222222222211",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/gucci-black-motif-dress-4.jpg",
+        alt_text: "Gucci Black Motif Dress Watch full flat-lay view with black leather-style strap",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333333",
+        product_id: "22222222-2222-4222-8222-222222222211",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/gucci-black-motif-dress-5.jpg",
+        alt_text: "Gucci Black Motif Dress Watch macro close-up of textured black dial and gold-tone decorative motifs",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T09:30:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
