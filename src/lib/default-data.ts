@@ -1041,6 +1041,83 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T11:00:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222216",
+    slug: "casio-edifice-two-tone-chronograph-style-watch",
+    name: "Casio Edifice Two-Tone Chronograph-Style Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111101",
+    collection: defaultCollections[0],
+    short_description:
+      "White and silver-tone dial with warm gold-tone accents, multiple sub-dials, a date display, and a silver-and-gold-tone link bracelet.",
+    description:
+      "Featuring a textured white and silver-tone dial highlighted by warm gold-tone accents, multiple sub-dials, and a date display at 3 o'clock, this watch is paired with a coordinated silver-and-gold-tone metal link bracelet.",
+    price_amount: 2999,
+    original_price_amount: 3699,
+    discount_percent: 19,
+    savings_label: "Save ₹700",
+    price_currency: "INR",
+    price_display: "₹2,999",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 3,
+    specs: [
+      { key: "Brand shown", value: "Casio Edifice" },
+      { key: "Collection", value: "Signature" },
+      { key: "Dial", value: "White/silver dial with gold-tone accents" },
+      { key: "Display", value: "Analog with multiple sub-dials and date display" },
+      { key: "Bracelet", value: "Silver-and-gold-tone metal link bracelet" },
+      { key: "Dial marking", value: "WR 100M (visible on dial)" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333353",
+        product_id: "22222222-2222-4222-8222-222222222216",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-edifice-two-tone-1.jpg",
+        alt_text: "Casio Edifice Two-Tone Chronograph-Style Watch front studio view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333354",
+        product_id: "22222222-2222-4222-8222-222222222216",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-edifice-two-tone-2.jpg",
+        alt_text: "Casio Edifice Two-Tone Chronograph-Style Watch angled horizontal studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333355",
+        product_id: "22222222-2222-4222-8222-222222222216",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-edifice-two-tone-3.jpg",
+        alt_text: "Casio Edifice Two-Tone Chronograph-Style Watch full vertical bracelet and clasp view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333356",
+        product_id: "22222222-2222-4222-8222-222222222216",
+        storage_path: null,
+        url: "/assets/watches/signature/casio-edifice-two-tone-4.jpg",
+        alt_text: "Casio Edifice Two-Tone Chronograph-Style Watch macro close-up of white/silver dial and gold-tone sub-dials",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T11:15:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
