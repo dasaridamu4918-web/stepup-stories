@@ -349,6 +349,94 @@ export const defaultProducts: ProductRecord[] = [
     created_at: "2026-10-27T07:30:00.000Z"
   },
   {
+    id: "22222222-2222-4222-8222-222222222208",
+    slug: "fossil-modern-minimal-chronograph-style-watch",
+    name: "Fossil Modern Minimal Chronograph-Style Watch",
+    reference_code: null,
+    collection_id: "11111111-1111-4111-8111-111111111103",
+    collection: defaultCollections[2],
+    short_description:
+      "A refined charcoal dial, clean Roman numeral accents and subtle gold-tone details give this Fossil watch a polished, modern look.",
+    description:
+      "A refined charcoal dial, clean Roman numeral accents and subtle gold-tone details give this Fossil watch a polished, modern look. The dark metal bracelet and multi-dial design make it easy to style for work or evening wear.",
+    price_amount: 2199,
+    original_price_amount: 2499,
+    discount_percent: 12,
+    savings_label: "Save ₹300",
+    price_currency: "INR",
+    price_display: "₹2,199",
+    availability_status: "available",
+    featured: true,
+    published: true,
+    sort_order: 4,
+    specs: [
+      { key: "Brand", value: "Fossil" },
+      { key: "Collection", value: "Modern Minimal" },
+      { key: "Dial", value: "Charcoal grey with gold-tone accents" },
+      { key: "Display", value: "Analog, with three sub-dials and a date window" },
+      { key: "Bracelet", value: "Dark-tone metal link bracelet" },
+      { key: "Style", value: "Modern, minimal and versatile" }
+    ],
+    images: [
+      {
+        id: "33333333-3333-4333-8333-333333333314",
+        product_id: "22222222-2222-4222-8222-222222222208",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/fossil-modern-minimal-1.jpg",
+        alt_text: "Fossil Modern Minimal Chronograph-Style Watch front overhead view",
+        is_primary: true,
+        sort_order: 0,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333315",
+        product_id: "22222222-2222-4222-8222-222222222208",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/fossil-modern-minimal-2.jpg",
+        alt_text: "Fossil Modern Minimal Chronograph-Style Watch horizontal studio view",
+        is_primary: false,
+        sort_order: 1,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333316",
+        product_id: "22222222-2222-4222-8222-222222222208",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/fossil-modern-minimal-3.jpg",
+        alt_text: "Fossil Modern Minimal Chronograph-Style Watch full dark metal link bracelet view",
+        is_primary: false,
+        sort_order: 2,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333317",
+        product_id: "22222222-2222-4222-8222-222222222208",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/fossil-modern-minimal-4.jpg",
+        alt_text: "Fossil Modern Minimal Chronograph-Style Watch side profile view",
+        is_primary: false,
+        sort_order: 3,
+        width: 1200,
+        height: 1500
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333318",
+        product_id: "22222222-2222-4222-8222-222222222208",
+        storage_path: null,
+        url: "/assets/watches/modern-minimal/fossil-modern-minimal-5.jpg",
+        alt_text: "Fossil Modern Minimal Chronograph-Style Watch macro close-up of charcoal dial and sub-dials",
+        is_primary: false,
+        sort_order: 4,
+        width: 1200,
+        height: 1500
+      }
+    ],
+    created_at: "2026-10-27T08:00:00.000Z"
+  },
+  {
     id: "22222222-2222-4222-8222-222222222201",
     slug: "signature-edition-i",
     name: "Signature Edition I",
