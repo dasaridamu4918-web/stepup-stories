@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   getProductBySlug,
   getPublishedProducts,
+  getRazorpayConfigStatus,
   isOnlinePaymentProviderConfigured
 } from "@/lib/repository";
 import { ProductCheckoutFlow } from "@/components/ProductCheckoutFlow";
@@ -66,6 +67,7 @@ export default async function CheckoutPage({
           <ProductCheckoutFlow
             product={selectedProduct}
             onlinePaymentConfigured={isOnlinePaymentProviderConfigured()}
+            razorpayMode={getRazorpayConfigStatus().mode}
             initialQuantity={initialQty}
           />
         ) : (

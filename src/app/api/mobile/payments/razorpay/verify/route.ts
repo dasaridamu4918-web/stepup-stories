@@ -19,42 +19,24 @@ export async function POST(request: NextRequest) {
       razorpay_order_id?: string;
       razorpay_payment_id?: string;
       razorpay_signature?: string;
-      test_mode?: boolean;
     };
 
-    const orderId = body.razorpay_order_id || "";
-    const paymentId = body.razorpay_payment_id || "";
-    const signature = body.razorpay_signature || "";
+    const orderId = (body.razorpay_order_id || "").trim();
+    const paymentId = (body.razorpay_payment_id || "").trim();
+    const signature = (body.razorpay_signature || "").trim();
 
-    if (!orderId || !paymentId) {
+    if (!orderId || !paymentId || !signature) {
       return NextResponse.json(
-        { verified: false, error: "Missing order_id or payment_id." },
+        {
+          verified: false,
+          error:
+            "Missing razorpay_order_id, razorpay_payment_id, or razorpay_signature."
+        },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-    // Simulated test mode verification when server secrets are not configured yet
-    if (!keySecret && orderId.startsWith("order_test_")) {
-      const updatedOrder = await markOrderPaidByProvider({
-        orderId: body.store_order_id,
-        razorpayOrderId: orderId,
-        razorpayPaymentId: paymentId
-      });
-
-      return NextResponse.json(
-        {
-          verified: true,
-          test_mode: true,
-          order_id: orderId,
-          payment_id: paymentId,
-          store_order: updatedOrder,
-          verified_at: new Date().toISOString()
-        },
-        { status: 200, headers: corsHeaders }
-      );
-    }
+    const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
 
     if (!keySecret) {
       return NextResponse.json(
@@ -62,7 +44,7 @@ export async function POST(request: NextRequest) {
           verified: false,
           error: "RAZORPAY_KEY_SECRET is not configured on the server."
         },
-        { status: 500, headers: corsHeaders }
+        { status: 503, headers: corsHeaders }
       );
     }
 
@@ -71,12 +53,12 @@ export async function POST(request: NextRequest) {
       .update(`${orderId}|${paymentId}`)
       .digest("hex");
 
+    const sigBuffer = Buffer.from(signature, "utf8");
+    const expectedBuffer = Buffer.from(expectedSignature, "utf8");
+
     const isValid =
-      signature.length === expectedSignature.length &&
-      crypto.timingSafeEqual(
-        Buffer.from(signature, "utf8"),
-        Buffer.from(expectedSignature, "utf8")
-      );
+      sigBuffer.length === expectedBuffer.length &&
+      crypto.timingSafeEqual(sigBuffer, expectedBuffer);
 
     if (!isValid) {
       return NextResponse.json(
@@ -88,13 +70,18 @@ export async function POST(request: NextRequest) {
     const updatedOrder = await markOrderPaidByProvider({
       orderId: body.store_order_id,
       razorpayOrderId: orderId,
-      razorpayPaymentId: paymentId
+      razorpayPaymentId: paymentId,
+      verifiedSource: "signature"
     });
+
+    const isTestMode = !(process.env.RAZORPAY_KEY_ID || "")
+      .trim()
+      .startsWith("rzp_live_");
 
     return NextResponse.json(
       {
         verified: true,
-        test_mode: (process.env.RAZORPAY_KEY_ID || "").startsWith("rzp_test_"),
+        test_mode: isTestMode,
         order_id: orderId,
         payment_id: paymentId,
         store_order: updatedOrder,
@@ -106,7 +93,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         verified: false,
-        error: error instanceof Error ? error.message : "Payment verification failed."
+        error:
+          error instanceof Error
+            ? error.message
+            : "Payment verification failed."
       },
       { status: 500, headers: corsHeaders }
     );

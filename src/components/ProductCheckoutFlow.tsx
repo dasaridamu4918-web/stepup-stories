@@ -59,10 +59,12 @@ declare global {
 export function ProductCheckoutFlow({
   product,
   onlinePaymentConfigured,
+  razorpayMode = "test",
   initialQuantity = 1
 }: {
   product: ProductRecord;
   onlinePaymentConfigured: boolean;
+  razorpayMode?: "test" | "live";
   initialQuantity?: number;
 }) {
   const maxStock = Math.max(0, product.stock_count ?? 10);
@@ -96,7 +98,9 @@ export function ProductCheckoutFlow({
   const [city, setCity] = useState("");
   const [stateName, setStateName] = useState("Maharashtra");
   const [pincode, setPincode] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "razorpay">("cod");
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "razorpay">(
+    onlinePaymentConfigured ? "razorpay" : "cod"
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -162,42 +166,10 @@ export function ProductCheckoutFlow({
 
     setSubmitting(true);
     try {
-      let razorpayOrderId: string | undefined;
-
-      // If online payment is selected and configured on server, initialize provider order first
-      if (paymentMethod === "razorpay" && onlinePaymentConfigured) {
-        const rzpInitRes = await fetch(
-          "/api/mobile/payments/razorpay/create-order",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              amount_inr: finalTotal,
-              customer_name: customerName.trim(),
-              customer_phone: cleanPhone
-            })
-          }
-        );
-        const rzpInitData = (await rzpInitRes.json()) as {
-          order_id?: string;
-          razorpay_key_id?: string;
-          amount?: number;
-          currency?: string;
-          error?: string;
-        };
-
-        if (!rzpInitRes.ok || !rzpInitData.order_id || !rzpInitData.razorpay_key_id) {
-          setErrorMessage(
-            rzpInitData.error ||
-              "Unable to initialize online payment with provider."
-          );
-          setSubmitting(false);
-          return;
-        }
-        razorpayOrderId = rzpInitData.order_id;
-      }
-
-      // 1. Create the order record on the server (always starts with payment_status = 'pending')
+      // 1. Create the order record on the server first.
+      // The server looks up the product in the trusted backend catalog and calculates
+      // the authoritative INR total (never trusting browser-supplied amounts).
+      // Orders always start with payment_status = 'pending'.
       const orderRes = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -228,7 +200,7 @@ export function ProductCheckoutFlow({
           ],
           delivery_fee: deliveryFee,
           payment_method: paymentMethod,
-          payment_reference: razorpayOrderId || "",
+          payment_reference: "",
           source: "website"
         })
       });
@@ -257,12 +229,49 @@ export function ProductCheckoutFlow({
         return;
       }
 
-      // 3. If Razorpay online payment is configured and selected, open Razorpay modal
-      // and verify signature on the server before marking the order as paid.
+      // 3. Create the Razorpay order on the server using the trusted server order ID & total
+      const rzpInitRes = await fetch("/api/payments/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_order_id: createdOrder.id,
+          receipt: createdOrder.order_number,
+          customer_name: createdOrder.customer_name,
+          customer_phone: createdOrder.customer_phone
+        })
+      });
+
+      const rzpInitData = (await rzpInitRes.json()) as {
+        ok?: boolean;
+        order_id?: string;
+        razorpay_key_id?: string;
+        amount?: number;
+        currency?: string;
+        error?: string;
+      };
+
+      if (
+        !rzpInitRes.ok ||
+        !rzpInitData.order_id ||
+        !rzpInitData.razorpay_key_id
+      ) {
+        setErrorMessage(
+          rzpInitData.error ||
+            `Order ${createdOrder.order_number} was saved with Pending payment status, but online payment could not be initialized.`
+        );
+        setConfirmedOrder(createdOrder);
+        setSubmitting(false);
+        return;
+      }
+
+      createdOrder.payment_reference = rzpInitData.order_id;
+
+      // 4. Open Razorpay Standard Checkout and verify the HMAC signature on the server
+      // before marking the order as paid.
       const sdkLoaded = await loadRazorpayScript();
       if (!sdkLoaded || !window.Razorpay) {
         setErrorMessage(
-          `Order ${createdOrder.order_number} was saved with Pending payment status, but the Razorpay checkout script could not be loaded.`
+          `Order ${createdOrder.order_number} was saved with Pending payment status, but the Razorpay Standard Checkout script could not be loaded.`
         );
         setConfirmedOrder(createdOrder);
         setSubmitting(false);
@@ -270,38 +279,47 @@ export function ProductCheckoutFlow({
       }
 
       const rzp = new window.Razorpay({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
-        amount: finalTotal * 100,
-        currency: "INR",
+        key: rzpInitData.razorpay_key_id,
+        amount: rzpInitData.amount ?? Math.round(createdOrder.final_total * 100),
+        currency: rzpInitData.currency || "INR",
         name: "STEPUP STORIES",
-        description: `${product.name} (Qty ${quantity})`,
-        order_id: razorpayOrderId,
+        description: `${product.name} (Qty ${quantity}) — ${createdOrder.order_number}`,
+        order_id: rzpInitData.order_id,
         prefill: {
           name: customerName.trim(),
           email: customerEmail.trim(),
           contact: cleanPhone
         },
+        notes: {
+          store_order_id: createdOrder.id,
+          order_number: createdOrder.order_number
+        },
         theme: {
           color: "#D4B475"
+        },
+        modal: {
+          ondismiss: () => {
+            setConfirmedOrder(createdOrder);
+            setSubmitting(false);
+          }
         },
         handler: async (response: {
           razorpay_order_id?: string;
           razorpay_payment_id?: string;
           razorpay_signature?: string;
         }) => {
-          const verifyRes = await fetch(
-            "/api/mobile/payments/razorpay/verify",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                store_order_id: createdOrder.id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature
-              })
-            }
-          );
+          // Do not treat the browser callback alone as proof of payment:
+          // verify the HMAC-SHA256 signature on the server before marking the order paid.
+          const verifyRes = await fetch("/api/payments/razorpay/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              store_order_id: createdOrder.id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            })
+          });
           const verifyData = (await verifyRes.json()) as {
             verified?: boolean;
             store_order?: StoreOrderRecord;
@@ -419,10 +437,20 @@ export function ProductCheckoutFlow({
                 <dt className="text-cream-muted">Payment Status</dt>
                 <dd className="font-semibold uppercase text-gold-bright">
                   {confirmedOrder.payment_status === "paid"
-                    ? "Paid (Provider Confirmed)"
-                    : "Pending Confirmation"}
+                    ? "Paid (Server Signature / Webhook Verified)"
+                    : confirmedOrder.payment_status === "failed"
+                      ? "Payment Failed"
+                      : "Pending Provider Confirmation"}
                 </dd>
               </div>
+              {confirmedOrder.payment_reference && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-cream-muted">Razorpay Reference</dt>
+                  <dd className="text-right font-mono text-xs text-cream">
+                    {confirmedOrder.payment_reference}
+                  </dd>
+                </div>
+              )}
               <div className="flex justify-between">
                 <dt className="text-cream-muted">Order Stage</dt>
                 <dd className="uppercase text-cream">
@@ -887,17 +915,27 @@ export function ProductCheckoutFlow({
                     className="mt-1"
                   />
                   <div>
-                    <span className="block text-xs font-bold uppercase tracking-wider text-cream">
+                    <span className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wider text-cream">
                       Online Payment (Razorpay)
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+                          razorpayMode === "live"
+                            ? "border border-emerald-500/50 bg-emerald-500/20 text-emerald-300"
+                            : "border border-gold/50 bg-gold/20 text-gold-bright"
+                        }`}
+                      >
+                        {razorpayMode === "live" ? "LIVE MODE" : "TEST MODE"}
+                      </span>
                     </span>
                     <span className="mt-1 block text-xs text-cream-secondary">
-                      UPI, Cards &amp; NetBanking. Verified on server before
-                      marking order as paid.
+                      Razorpay Standard Checkout (INR) — UPI, Cards &amp;
+                      NetBanking. Server-calculated amount &amp; HMAC signature
+                      verified before marking paid.
                     </span>
                   </div>
                 </label>
               ) : (
-                <div className="flex items-start gap-3 rounded-xl border border-gold/15 bg-obsidian/40 p-4 opacity-70">
+                <div className="flex items-start gap-3 rounded-xl border border-gold/15 bg-obsidian/40 p-4 opacity-80">
                   <input
                     type="radio"
                     disabled
@@ -906,14 +944,19 @@ export function ProductCheckoutFlow({
                     className="mt-1"
                   />
                   <div>
-                    <span className="block text-xs font-bold uppercase tracking-wider text-cream-muted">
-                      Online Payment (Not Configured)
+                    <span className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wider text-cream-muted">
+                      Online Payment (Razorpay)
+                      <span className="rounded border border-gold/40 bg-gold/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-gold-bright">
+                        TEST MODE (Awaiting Keys)
+                      </span>
                     </span>
                     <span className="mt-1 block text-[11px] text-cream-muted">
-                      Online payment becomes available automatically once{" "}
-                      <code className="text-gold">RAZORPAY_KEY_ID</code> &amp;{" "}
-                      <code className="text-gold">RAZORPAY_KEY_SECRET</code> are
-                      set in server environment variables.
+                      Razorpay Standard Checkout activates automatically once{" "}
+                      <code className="text-gold">RAZORPAY_KEY_ID</code>,{" "}
+                      <code className="text-gold">RAZORPAY_KEY_SECRET</code>{" "}
+                      &amp;{" "}
+                      <code className="text-gold">RAZORPAY_WEBHOOK_SECRET</code>{" "}
+                      are set in Vercel server environment variables.
                     </span>
                   </div>
                 </div>

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import {
   getProductBySlug,
   getPublishedProducts,
+  getRazorpayConfigStatus,
   getSiteSettings,
   isOnlinePaymentProviderConfigured
 } from "@/lib/repository";
@@ -305,6 +306,7 @@ export default async function ProductDetailPage({
             <ProductCheckoutFlow
               product={product}
               onlinePaymentConfigured={isOnlinePaymentProviderConfigured()}
+              razorpayMode={getRazorpayConfigStatus().mode}
             />
           </div>
         </section>

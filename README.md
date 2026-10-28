@@ -65,8 +65,53 @@ The Admin Dashboard (`/admin`) is connected directly to both the **STEPUP STORIE
 
 ### 3. Payments, Privacy & Audit Trail
 - Full card numbers, CVVs, and payment secrets are **never** stored or displayed.
-- Orders are **never** marked as `paid` until the payment provider confirms the transaction (`/api/mobile/payments/razorpay/verify`) or an approved admin records a verified payment reference.
+- Every Razorpay order is created on the server (`/api/payments/razorpay/create-order`) using the product price and order total calculated from the trusted backend catalog—amounts sent only by the browser are **never** trusted.
+- Orders are **never** marked as `paid` until the server verifies the Razorpay HMAC-SHA256 payment signature (`/api/payments/razorpay/verify`) or verifies the raw-body Razorpay webhook signature (`/api/payments/razorpay/webhook`). A browser success screen by itself is never treated as proof of payment.
 - Sensitive admin actions (order status updates, refunds, CSV order exports, and product price/stock edits) are recorded in `admin_audit_logs`.
+
+---
+
+## Razorpay Online Payments Setup (Test Mode, Webhooks & Live Mode)
+
+The integration defaults to **Test Mode** until you configure approved Live Mode credentials in Vercel.
+
+### 1. Vercel Server Environment Variables
+In your Vercel project dashboard (**Settings -> Environment Variables**), configure the following three **server-only** environment variables (for `Production`, `Preview`, and `Development` as needed):
+
+| Variable Name | Description | Example (Test Mode) |
+| :--- | :--- | :--- |
+| `RAZORPAY_KEY_ID` | Your Razorpay Key ID (starts with `rzp_test_` in Test Mode or `rzp_live_` in Live Mode). Returned by the server only when initializing checkout. | `rzp_test_xxxxxxxxxxxxxx` |
+| `RAZORPAY_KEY_SECRET` | **Server-only** Key Secret used to create orders on the server and verify HMAC-SHA256 payment signatures. **Never** expose to the browser, mobile app, repository, or logs. | *(From Razorpay Dashboard)* |
+| `RAZORPAY_WEBHOOK_SECRET` | **Server-only** Webhook Secret used to verify the `x-razorpay-signature` header against the raw request body on `/api/payments/razorpay/webhook`. | *(From Razorpay Webhooks)* |
+
+### 2. Setting Up the Razorpay Test Webhook
+1. Sign in to the [Razorpay Dashboard](https://dashboard.razorpay.com/) and switch the top banner to **Test Mode**.
+2. Go to **Account & Settings -> Webhooks** and click **+ Add New Webhook**.
+3. Enter the **Webhook URL**:
+   ```text
+   https://stepup-stories.vercel.app/api/payments/razorpay/webhook
+   ```
+4. Enter a strong **Secret** (for example, a 32-character random string) and save that exact value as `RAZORPAY_WEBHOOK_SECRET` in Vercel Environment Variables.
+5. Under **Active Events**, select:
+   - `payment.captured`
+   - `order.paid`
+   - `payment.failed`
+   - `refund.processed`
+6. Click **Create Webhook**. Duplicate webhook deliveries are handled idempotently using `x-razorpay-event-id` and order payment state checks.
+
+### 3. Setting Up the Razorpay Live Webhook & Switching to Live Mode
+When your Razorpay account KYC is approved and you are ready to accept real INR payments:
+1. In the [Razorpay Dashboard](https://dashboard.razorpay.com/), switch from **Test Mode** to **Live Mode**.
+2. Go to **Account & Settings -> API Keys** and generate your **Live Mode** key pair (`RAZORPAY_KEY_ID` starting with `rzp_live_` and `RAZORPAY_KEY_SECRET`).
+3. Go to **Account & Settings -> Webhooks** (while in **Live Mode**) and click **+ Add New Webhook**:
+   - **Webhook URL:** `https://stepup-stories.vercel.app/api/payments/razorpay/webhook`
+   - **Secret:** Set a strong Live Webhook secret.
+   - **Active Events:** `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`.
+4. In your **Vercel Dashboard -> Settings -> Environment Variables** (for the **Production** environment), update:
+   - `RAZORPAY_KEY_ID` = your `rzp_live_...` Key ID
+   - `RAZORPAY_KEY_SECRET` = your Live Key Secret
+   - `RAZORPAY_WEBHOOK_SECRET` = your Live Webhook Secret
+5. Redeploy your Production deployment on Vercel (**Deployments -> Redeploy**). The checkout badge will automatically switch from `TEST MODE` to `LIVE MODE`.
 
 ---
 

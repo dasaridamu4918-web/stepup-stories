@@ -39,6 +39,7 @@ interface LocalMemoryStore {
   subscribers: NewsletterSubscriberRecord[];
   orders: StoreOrderRecord[];
   auditLogs: AdminAuditLogRecord[];
+  processedWebhookEventIds: string[];
 }
 
 const globalForStore = globalThis as unknown as {
@@ -58,7 +59,8 @@ function getMemoryStore(): LocalMemoryStore {
       enquiries: [],
       subscribers: [],
       orders: [],
-      auditLogs: []
+      auditLogs: [],
+      processedWebhookEventIds: []
     };
   }
   return globalForStore.__stepupMemoryStore;
@@ -435,8 +437,104 @@ export async function unsubscribeByToken(token: string): Promise<boolean> {
 }
 
 /**
+ * Resolves and calculates order items and totals strictly from the trusted server-side
+ * catalog (`getPublishedProducts()` + in-memory admin catalog).
+ * Never trusts unit prices or totals sent by the browser.
+ */
+export async function calculateTrustedOrderPricing(params: {
+  items: {
+    product_id: string;
+    slug: string;
+    name?: string;
+    collection_name?: string | null;
+    selected_options?: string | null;
+    quantity: number;
+    image_url?: string | null;
+  }[];
+  delivery_fee?: number;
+  decrementStock?: boolean;
+}): Promise<{
+  normalizedItems: StoreOrderItem[];
+  itemSubtotal: number;
+  netItemsTotal: number;
+  discountTotal: number;
+  deliveryFee: number;
+  finalTotal: number;
+}> {
+  const store = getMemoryStore();
+  const publishedProducts = await getPublishedProducts();
+
+  const normalizedItems: StoreOrderItem[] = params.items.map((item) => {
+    const matchedPublished = publishedProducts.find(
+      (p) => p.id === item.product_id || p.slug === item.slug
+    );
+    const matchedMemory = store.products.find(
+      (p) => p.id === item.product_id || p.slug === item.slug
+    );
+    const matched = matchedPublished ?? matchedMemory;
+
+    if (!matched || typeof matched.price_amount !== "number" || matched.price_amount <= 0) {
+      throw new Error(
+        `Product "${item.slug || item.product_id}" was not found in the trusted backend catalog or has no valid INR price.`
+      );
+    }
+
+    const quantity = Math.max(1, Math.floor(Number(item.quantity) || 1));
+    const unitPrice = matched.price_amount;
+    const origPrice =
+      typeof matched.original_price_amount === "number" &&
+      matched.original_price_amount >= unitPrice
+        ? matched.original_price_amount
+        : unitPrice;
+
+    if (params.decrementStock && matchedMemory) {
+      const currentStock =
+        typeof matchedMemory.stock_count === "number"
+          ? matchedMemory.stock_count
+          : 10;
+      matchedMemory.stock_count = Math.max(0, currentStock - quantity);
+    }
+
+    return {
+      product_id: matched.id,
+      slug: matched.slug,
+      name: matched.name || item.name || "Timepiece",
+      collection_name:
+        matched.collection?.name || item.collection_name || null,
+      selected_options: item.selected_options || null,
+      quantity,
+      unit_price: unitPrice,
+      original_unit_price: origPrice,
+      line_total: unitPrice * quantity,
+      image_url: matched.images[0]?.url || item.image_url || null
+    };
+  });
+
+  const itemSubtotal = normalizedItems.reduce(
+    (sum, i) => sum + i.original_unit_price * i.quantity,
+    0
+  );
+  const netItemsTotal = normalizedItems.reduce(
+    (sum, i) => sum + i.line_total,
+    0
+  );
+  const discountTotal = Math.max(0, itemSubtotal - netItemsTotal);
+  const deliveryFee = Math.max(0, params.delivery_fee || 0);
+  const finalTotal = netItemsTotal + deliveryFee;
+
+  return {
+    normalizedItems,
+    itemSubtotal,
+    netItemsTotal,
+    discountTotal,
+    deliveryFee,
+    finalTotal
+  };
+}
+
+/**
  * Creates a new store order from either the Website or Mobile App.
- * - Validates and computes totals on the server.
+ * - Validates and computes totals strictly on the server from the trusted catalog.
  * - Never marks an order as `paid` at creation time (payment_status starts as `pending`
  *   until confirmed by the payment provider or COD collection).
  * - Decrements product stock counts and triggers admin alerts if configured.
@@ -451,46 +549,17 @@ export async function createStoreOrder(
     .slice(2, 4)
     .toUpperCase()}`;
 
-  const normalizedItems: StoreOrderItem[] = input.items.map((item) => {
-    const matched = store.products.find(
-      (p) => p.id === item.product_id || p.slug === item.slug
-    );
-    const unitPrice =
-      matched?.price_amount && matched.price_amount > 0
-        ? matched.price_amount
-        : item.unit_price;
-    const origPrice =
-      matched?.original_price_amount && matched.original_price_amount >= unitPrice
-        ? matched.original_price_amount
-        : Math.max(unitPrice, item.original_unit_price ?? unitPrice);
-
-    if (matched) {
-      const currentStock = typeof matched.stock_count === "number" ? matched.stock_count : 10;
-      matched.stock_count = Math.max(0, currentStock - item.quantity);
-    }
-
-    return {
-      product_id: item.product_id,
-      slug: item.slug,
-      name: matched?.name || item.name,
-      collection_name: matched?.collection?.name || item.collection_name || null,
-      selected_options: item.selected_options || null,
-      quantity: item.quantity,
-      unit_price: unitPrice,
-      original_unit_price: origPrice,
-      line_total: unitPrice * item.quantity,
-      image_url: matched?.images[0]?.url || item.image_url || null
-    };
+  const {
+    normalizedItems,
+    itemSubtotal,
+    discountTotal,
+    deliveryFee,
+    finalTotal
+  } = await calculateTrustedOrderPricing({
+    items: input.items,
+    delivery_fee: input.delivery_fee,
+    decrementStock: true
   });
-
-  const itemSubtotal = normalizedItems.reduce(
-    (sum, i) => sum + i.original_unit_price * i.quantity,
-    0
-  );
-  const netItemsTotal = normalizedItems.reduce((sum, i) => sum + i.line_total, 0);
-  const discountTotal = Math.max(0, itemSubtotal - netItemsTotal);
-  const deliveryFee = Math.max(0, input.delivery_fee || 0);
-  const finalTotal = netItemsTotal + deliveryFee;
 
   const order: StoreOrderRecord = {
     id: crypto.randomUUID(),
@@ -576,39 +645,158 @@ export async function createStoreOrder(
   return order;
 }
 
+export async function getStoreOrderById(
+  orderId: string
+): Promise<StoreOrderRecord | null> {
+  const store = getMemoryStore();
+  const inMemory = store.orders.find(
+    (o) => o.id === orderId || o.order_number === orderId
+  );
+  if (inMemory) return inMemory;
+
+  if (isServiceRoleConfigured()) {
+    const service = createSupabaseServiceClient();
+    if (service) {
+      const { data } = await service
+        .from("store_orders")
+        .select("*")
+        .or(`id.eq.${orderId},order_number.eq.${orderId}`)
+        .maybeSingle();
+      if (data) {
+        const record = data as StoreOrderRecord;
+        store.orders.unshift(record);
+        return record;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function findOrderForPaymentReference(params: {
+  orderId?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+}): Promise<StoreOrderRecord | null> {
+  const store = getMemoryStore();
+
+  const matchInList = (list: StoreOrderRecord[]) =>
+    list.find(
+      (o) =>
+        (params.orderId &&
+          (o.id === params.orderId || o.order_number === params.orderId)) ||
+        (params.razorpayOrderId &&
+          (o.payment_reference === params.razorpayOrderId ||
+            o.payment_reference?.includes(params.razorpayOrderId))) ||
+        (params.razorpayPaymentId &&
+          o.payment_reference?.includes(params.razorpayPaymentId))
+    ) ?? null;
+
+  const localMatch = matchInList(store.orders);
+  if (localMatch) return localMatch;
+
+  if (isServiceRoleConfigured()) {
+    const service = createSupabaseServiceClient();
+    if (service) {
+      const { data } = await service
+        .from("store_orders")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (Array.isArray(data)) {
+        const found = matchInList(data as StoreOrderRecord[]);
+        if (found) {
+          store.orders.unshift(found);
+          return found;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+export async function attachRazorpayOrderToStoreOrder(
+  orderId: string,
+  razorpayOrderId: string
+): Promise<StoreOrderRecord | null> {
+  const order = await getStoreOrderById(orderId);
+  if (!order) return null;
+
+  const now = new Date().toISOString();
+  order.payment_reference = razorpayOrderId;
+  order.updated_at = now;
+
+  if (isServiceRoleConfigured()) {
+    const service = createSupabaseServiceClient();
+    if (service) {
+      await service
+        .from("store_orders")
+        .update({
+          payment_reference: razorpayOrderId,
+          updated_at: now
+        })
+        .eq("id", order.id);
+    }
+  }
+
+  return order;
+}
+
 /**
  * Marks an order as paid ONLY after the payment provider (Razorpay HMAC signature / webhook)
  * confirms the transaction. Stores only the safe provider reference.
+ * Idempotent: safe to call from both signature verification and webhook delivery.
  */
 export async function markOrderPaidByProvider(params: {
   orderId?: string;
   razorpayOrderId: string;
   razorpayPaymentId: string;
+  verifiedSource?: "signature" | "webhook";
 }): Promise<StoreOrderRecord | null> {
-  const store = getMemoryStore();
   const safeRef = `${params.razorpayOrderId} / ${params.razorpayPaymentId}`;
   const now = new Date().toISOString();
 
-  const order = store.orders.find(
-    (o) =>
-      (params.orderId && o.id === params.orderId) ||
-      o.payment_reference === params.razorpayOrderId ||
-      o.payment_reference?.includes(params.razorpayOrderId)
-  );
+  const order = await findOrderForPaymentReference({
+    orderId: params.orderId,
+    razorpayOrderId: params.razorpayOrderId,
+    razorpayPaymentId: params.razorpayPaymentId
+  });
 
   if (!order) return null;
+
+  // Idempotent guard: if already paid with this exact payment ID, do not duplicate history
+  if (
+    order.payment_status === "paid" &&
+    order.payment_reference?.includes(params.razorpayPaymentId)
+  ) {
+    return order;
+  }
 
   const prevStatus = order.order_status;
   order.payment_status = "paid";
   order.payment_reference = safeRef;
+  const actor =
+    params.verifiedSource === "webhook"
+      ? "webhook:razorpay"
+      : "payment_provider:razorpay";
+
   if (order.order_status === "new") {
     order.order_status = "confirmed";
     order.status_history.push({
       from_status: prevStatus,
       to_status: "confirmed",
-      changed_by: "payment_provider:razorpay",
+      changed_by: actor,
       changed_at: now,
       note: `Payment confirmed by provider (${safeRef})`
+    });
+  } else {
+    order.status_history.push({
+      from_status: prevStatus,
+      to_status: prevStatus,
+      changed_by: actor,
+      changed_at: now,
+      note: `Payment settled by provider (${safeRef})`
     });
   }
   order.updated_at = now;
@@ -630,6 +818,270 @@ export async function markOrderPaidByProvider(params: {
   }
 
   return order;
+}
+
+export async function markOrderPaymentFailedByProvider(params: {
+  orderId?: string;
+  razorpayOrderId: string;
+  razorpayPaymentId?: string;
+  reason?: string | null;
+}): Promise<StoreOrderRecord | null> {
+  const safeRef = params.razorpayPaymentId
+    ? `${params.razorpayOrderId} / ${params.razorpayPaymentId}`
+    : params.razorpayOrderId;
+  const now = new Date().toISOString();
+
+  const order = await findOrderForPaymentReference({
+    orderId: params.orderId,
+    razorpayOrderId: params.razorpayOrderId,
+    razorpayPaymentId: params.razorpayPaymentId
+  });
+
+  if (!order) return null;
+
+  // Never downgrade an already-paid order if an earlier failed attempt webhook arrives late
+  if (order.payment_status === "paid") {
+    return order;
+  }
+
+  // Idempotent guard if already marked failed with this reference
+  if (
+    order.payment_status === "failed" &&
+    order.payment_reference === safeRef
+  ) {
+    return order;
+  }
+
+  order.payment_status = "failed";
+  order.payment_reference = safeRef;
+  order.status_history.push({
+    from_status: order.order_status,
+    to_status: order.order_status,
+    changed_by: "webhook:razorpay",
+    changed_at: now,
+    note: `Payment failed (${safeRef})${params.reason ? `: ${params.reason}` : ""}`
+  });
+  order.updated_at = now;
+
+  if (isServiceRoleConfigured()) {
+    const service = createSupabaseServiceClient();
+    if (service) {
+      await service
+        .from("store_orders")
+        .update({
+          payment_status: order.payment_status,
+          payment_reference: order.payment_reference,
+          status_history: order.status_history,
+          updated_at: now
+        })
+        .eq("id", order.id);
+    }
+  }
+
+  return order;
+}
+
+/**
+ * Processes a verified Razorpay webhook event idempotently.
+ * Handles duplicate webhook deliveries safely via eventId + order state checks.
+ */
+export async function processRazorpayWebhookEvent(params: {
+  eventId: string;
+  eventType: string;
+  storeOrderId?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpayRefundId?: string;
+  amountPaise?: number;
+  errorDescription?: string | null;
+}): Promise<{
+  handled: boolean;
+  duplicate: boolean;
+  order: StoreOrderRecord | null;
+  reason?: string;
+}> {
+  const store = getMemoryStore();
+  const dedupeKey =
+    params.eventId ||
+    `${params.eventType}:${params.razorpayOrderId || ""}:${params.razorpayPaymentId || ""}:${params.razorpayRefundId || ""}`;
+
+  if (dedupeKey && store.processedWebhookEventIds.includes(dedupeKey)) {
+    const existingOrder = await findOrderForPaymentReference({
+      orderId: params.storeOrderId,
+      razorpayOrderId: params.razorpayOrderId,
+      razorpayPaymentId: params.razorpayPaymentId
+    });
+    return {
+      handled: true,
+      duplicate: true,
+      order: existingOrder
+    };
+  }
+
+  if (
+    params.eventType === "payment.captured" ||
+    params.eventType === "order.paid"
+  ) {
+    if (!params.razorpayOrderId || !params.razorpayPaymentId) {
+      return {
+        handled: false,
+        duplicate: false,
+        order: null,
+        reason: "Missing razorpayOrderId or razorpayPaymentId in webhook payload."
+      };
+    }
+
+    const targetOrder = await findOrderForPaymentReference({
+      orderId: params.storeOrderId,
+      razorpayOrderId: params.razorpayOrderId,
+      razorpayPaymentId: params.razorpayPaymentId
+    });
+
+    if (!targetOrder) {
+      return {
+        handled: false,
+        duplicate: false,
+        order: null,
+        reason: "Matching order not found."
+      };
+    }
+
+    // Verify paid amount in paise matches the server-computed order total
+    const expectedPaise = Math.round(targetOrder.final_total * 100);
+    if (
+      typeof params.amountPaise === "number" &&
+      params.amountPaise > 0 &&
+      params.amountPaise !== expectedPaise
+    ) {
+      return {
+        handled: false,
+        duplicate: false,
+        order: targetOrder,
+        reason: `Webhook amount mismatch: expected ${expectedPaise} paise, got ${params.amountPaise} paise.`
+      };
+    }
+
+    // Check if already paid with this payment ID
+    if (
+      targetOrder.payment_status === "paid" &&
+      targetOrder.payment_reference?.includes(params.razorpayPaymentId)
+    ) {
+      if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
+      return {
+        handled: true,
+        duplicate: true,
+        order: targetOrder
+      };
+    }
+
+    const updated = await markOrderPaidByProvider({
+      orderId: targetOrder.id,
+      razorpayOrderId: params.razorpayOrderId,
+      razorpayPaymentId: params.razorpayPaymentId,
+      verifiedSource: "webhook"
+    });
+
+    if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
+    return {
+      handled: true,
+      duplicate: false,
+      order: updated
+    };
+  }
+
+  if (params.eventType === "payment.failed") {
+    if (!params.razorpayOrderId) {
+      return {
+        handled: false,
+        duplicate: false,
+        order: null,
+        reason: "Missing razorpayOrderId in payment.failed payload."
+      };
+    }
+
+    const updated = await markOrderPaymentFailedByProvider({
+      orderId: params.storeOrderId,
+      razorpayOrderId: params.razorpayOrderId,
+      razorpayPaymentId: params.razorpayPaymentId,
+      reason: params.errorDescription
+    });
+
+    if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
+    return {
+      handled: Boolean(updated),
+      duplicate: false,
+      order: updated
+    };
+  }
+
+  if (
+    params.eventType === "refund.processed" ||
+    params.eventType === "refund.created"
+  ) {
+    const targetOrder = await findOrderForPaymentReference({
+      orderId: params.storeOrderId,
+      razorpayOrderId: params.razorpayOrderId,
+      razorpayPaymentId: params.razorpayPaymentId
+    });
+
+    if (!targetOrder) {
+      return {
+        handled: false,
+        duplicate: false,
+        order: null,
+        reason: "Matching order not found for refund webhook."
+      };
+    }
+
+    if (targetOrder.payment_status === "refunded") {
+      if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
+      return {
+        handled: true,
+        duplicate: true,
+        order: targetOrder
+      };
+    }
+
+    const now = new Date().toISOString();
+    targetOrder.payment_status = "refunded";
+    targetOrder.status_history.push({
+      from_status: targetOrder.order_status,
+      to_status: targetOrder.order_status,
+      changed_by: "webhook:razorpay",
+      changed_at: now,
+      note: `Refund processed via Razorpay (${params.razorpayRefundId || params.razorpayPaymentId || "refund"})`
+    });
+    targetOrder.updated_at = now;
+
+    if (isServiceRoleConfigured()) {
+      const service = createSupabaseServiceClient();
+      if (service) {
+        await service
+          .from("store_orders")
+          .update({
+            payment_status: targetOrder.payment_status,
+            status_history: targetOrder.status_history,
+            updated_at: now
+          })
+          .eq("id", targetOrder.id);
+      }
+    }
+
+    if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
+    return {
+      handled: true,
+      duplicate: false,
+      order: targetOrder
+    };
+  }
+
+  if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
+  return {
+    handled: false,
+    duplicate: false,
+    order: null,
+    reason: `Unhandled event type: ${params.eventType}`
+  };
 }
 
 // ============================================================================
@@ -1241,6 +1693,23 @@ export function isOnlinePaymentProviderConfigured(): boolean {
     process.env.RAZORPAY_KEY_ID?.trim() &&
       process.env.RAZORPAY_KEY_SECRET?.trim()
   );
+}
+
+export function getRazorpayConfigStatus(): {
+  configured: boolean;
+  webhookConfigured: boolean;
+  mode: "test" | "live";
+} {
+  const keyId = process.env.RAZORPAY_KEY_ID?.trim() || "";
+  const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim() || "";
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim() || "";
+  const configured = Boolean(keyId && keySecret);
+  const mode = configured && keyId.startsWith("rzp_live_") ? "live" : "test";
+  return {
+    configured,
+    webhookConfigured: Boolean(webhookSecret),
+    mode
+  };
 }
 
 export async function deleteAdminProductImage(imageId: string) {

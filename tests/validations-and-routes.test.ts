@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import crypto from "crypto";
 import {
   enquiryFormSchema,
   newsletterFormSchema,
@@ -12,12 +13,16 @@ import { buildMobileCatalog } from "@/lib/mobile-catalog";
 import {
   createStoreOrder,
   getAdminDashboardData,
+  getStoreOrderById,
   markOrderPaidByProvider,
   updateAdminOrderStatus
 } from "@/lib/repository";
 import { GET as getAdminCatalog, POST as postAdminCatalog } from "@/app/api/admin/catalog/route";
 import { GET as getMobileOrders } from "@/app/api/mobile/orders/route";
 import { GET as getWebsiteOrders, POST as postWebsiteOrder } from "@/app/api/orders/route";
+import { POST as postRazorpayCreateOrder } from "@/app/api/payments/razorpay/create-order/route";
+import { POST as postRazorpayVerify } from "@/app/api/payments/razorpay/verify/route";
+import { POST as postRazorpayWebhook } from "@/app/api/payments/razorpay/webhook/route";
 import { NextRequest } from "next/server";
 
 describe("STEPUP STORIES Zod Validation & Input Sanitization", () => {
@@ -352,5 +357,196 @@ describe("STEPUP STORIES Form API Routes (Enquiry & Newsletter)", () => {
       )
     );
     expect(wrongPhoneRes.status).toBe(404);
+  });
+
+  it("ignores tampered browser prices, verifies Razorpay HMAC payment signatures, and handles raw-body webhooks idempotently", async () => {
+    // 1. Even if a browser sends a tampered unit_price of ₹1, the server calculates the authoritative total from the trusted backend catalog (₹2,499)
+    const tamperedOrder = await createStoreOrder({
+      customer_name: "Arjun Verma",
+      customer_email: "arjun.verma@example.com",
+      customer_phone: "9898989898",
+      delivery_address: {
+        address_line1: "101 Connaught Place",
+        city: "New Delhi",
+        state: "Delhi (NCT)",
+        pincode: "110001"
+      },
+      items: [
+        {
+          product_id: "22222222-2222-4222-8222-222222222224",
+          slug: "black-dial-gold-tone-watch",
+          name: "Black Dial Gold-Tone Watch",
+          unit_price: 1,
+          original_unit_price: 1,
+          quantity: 1
+        }
+      ],
+      delivery_fee: 0,
+      payment_method: "razorpay",
+      payment_reference: "order_rzp_server_001",
+      source: "website"
+    });
+    expect(tamperedOrder.final_total).toBe(2499);
+    expect(tamperedOrder.item_subtotal).toBe(2899);
+    expect(tamperedOrder.discount_total).toBe(400);
+    expect(tamperedOrder.payment_status).toBe("pending");
+
+    // 2. /api/payments/razorpay/create-order rejects raw browser amounts without a trusted store_order_id or catalog items
+    const untrustedAmountRes = await postRazorpayCreateOrder(
+      new NextRequest("http://localhost:3000/api/payments/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount_inr: 1 })
+      })
+    );
+    expect(untrustedAmountRes.status).toBe(400);
+
+    // 3. /api/payments/razorpay/verify rejects invalid signatures and marks order paid only on valid HMAC-SHA256 signature
+    const prevKeySecret = process.env.RAZORPAY_KEY_SECRET;
+    const prevWebhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    process.env.RAZORPAY_KEY_SECRET = "test_secret_key_for_hmac_verification";
+    process.env.RAZORPAY_WEBHOOK_SECRET = "test_webhook_secret_for_raw_body";
+
+    try {
+      const badSigRes = await postRazorpayVerify(
+        new NextRequest("http://localhost:3000/api/payments/razorpay/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            store_order_id: tamperedOrder.id,
+            razorpay_order_id: "order_rzp_server_001",
+            razorpay_payment_id: "pay_rzp_001",
+            razorpay_signature: "0000000000000000000000000000000000000000000000000000000000000000"
+          })
+        })
+      );
+      expect(badSigRes.status).toBe(400);
+      expect((await getStoreOrderById(tamperedOrder.id))?.payment_status).toBe("pending");
+
+      const validPaymentSig = crypto
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+        .update("order_rzp_server_001|pay_rzp_001")
+        .digest("hex");
+
+      const goodSigRes = await postRazorpayVerify(
+        new NextRequest("http://localhost:3000/api/payments/razorpay/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            store_order_id: tamperedOrder.id,
+            razorpay_order_id: "order_rzp_server_001",
+            razorpay_payment_id: "pay_rzp_001",
+            razorpay_signature: validPaymentSig
+          })
+        })
+      );
+      expect(goodSigRes.status).toBe(200);
+      expect((await getStoreOrderById(tamperedOrder.id))?.payment_status).toBe("paid");
+
+      // 4. Test raw-body webhook signature verification and duplicate-event idempotency on a second order
+      const webhookOrder = await createStoreOrder({
+        customer_name: "Ananya Iyer",
+        customer_email: "ananya.iyer@example.com",
+        customer_phone: "9765432109",
+        delivery_address: {
+          address_line1: "22 Cathedral Road",
+          city: "Chennai",
+          state: "Tamil Nadu",
+          pincode: "600086"
+        },
+        items: [
+          {
+            product_id: "22222222-2222-4222-8222-222222222224",
+            slug: "black-dial-gold-tone-watch",
+            name: "Black Dial Gold-Tone Watch",
+            unit_price: 2499,
+            original_unit_price: 2899,
+            quantity: 1
+          }
+        ],
+        delivery_fee: 0,
+        payment_method: "razorpay",
+        payment_reference: "order_rzp_webhook_002",
+        source: "website"
+      });
+
+      const rawWebhookPayload = JSON.stringify({
+        event: "payment.captured",
+        payload: {
+          payment: {
+            entity: {
+              id: "pay_rzp_webhook_002",
+              order_id: "order_rzp_webhook_002",
+              amount: 249900,
+              currency: "INR",
+              status: "captured",
+              notes: {
+                store_order_id: webhookOrder.id
+              }
+            }
+          }
+        }
+      });
+
+      const validWebhookSig = crypto
+        .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
+        .update(rawWebhookPayload)
+        .digest("hex");
+
+      // First webhook delivery marks order paid and confirmed
+      const firstWebhookRes = await postRazorpayWebhook(
+        new NextRequest("http://localhost:3000/api/payments/razorpay/webhook", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-razorpay-signature": validWebhookSig,
+            "x-razorpay-event-id": "evt_razorpay_unique_002"
+          },
+          body: rawWebhookPayload
+        })
+      );
+      expect(firstWebhookRes.status).toBe(200);
+      const firstWebhookJson = (await firstWebhookRes.json()) as {
+        ok: boolean;
+        duplicate: boolean;
+        payment_status: string;
+        order_status: string;
+      };
+      expect(firstWebhookJson.ok).toBe(true);
+      expect(firstWebhookJson.duplicate).toBe(false);
+      expect(firstWebhookJson.payment_status).toBe("paid");
+      expect(firstWebhookJson.order_status).toBe("confirmed");
+
+      const historyLengthAfterFirst =
+        (await getStoreOrderById(webhookOrder.id))?.status_history.length ?? 0;
+
+      // Second (duplicate) webhook delivery is handled safely without duplicating status history
+      const duplicateWebhookRes = await postRazorpayWebhook(
+        new NextRequest("http://localhost:3000/api/payments/razorpay/webhook", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-razorpay-signature": validWebhookSig,
+            "x-razorpay-event-id": "evt_razorpay_unique_002"
+          },
+          body: rawWebhookPayload
+        })
+      );
+      expect(duplicateWebhookRes.status).toBe(200);
+      const duplicateWebhookJson = (await duplicateWebhookRes.json()) as {
+        ok: boolean;
+        duplicate: boolean;
+      };
+      expect(duplicateWebhookJson.ok).toBe(true);
+      expect(duplicateWebhookJson.duplicate).toBe(true);
+      expect(
+        (await getStoreOrderById(webhookOrder.id))?.status_history.length
+      ).toBe(historyLengthAfterFirst);
+    } finally {
+      if (prevKeySecret === undefined) delete process.env.RAZORPAY_KEY_SECRET;
+      else process.env.RAZORPAY_KEY_SECRET = prevKeySecret;
+      if (prevWebhookSecret === undefined) delete process.env.RAZORPAY_WEBHOOK_SECRET;
+      else process.env.RAZORPAY_WEBHOOK_SECRET = prevWebhookSecret;
+    }
   });
 });
