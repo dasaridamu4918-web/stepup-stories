@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import {
   clearAdminFallbackCookie,
-  getApprovedAdminEmails,
-  setAdminFallbackCookie
+  setAdminFallbackCookie,
+  verifyAdminPasswordCredential
 } from "@/lib/admin-auth";
 import {
   createSupabaseServerClient,
@@ -83,11 +83,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Check INITIAL_ADMIN_EMAIL / APPROVED_ADMIN_EMAILS & INITIAL_ADMIN_PASSWORD env variables
-    const approvedEmails = getApprovedAdminEmails();
-    const initialPassword = process.env.INITIAL_ADMIN_PASSWORD;
-
-    if (approvedEmails.has(email) && initialPassword && password === initialPassword) {
+    // 2. Check approved admin email + verified password credential
+    if (verifyAdminPasswordCredential(email, password)) {
       const token = setAdminFallbackCookie(email);
       return NextResponse.json({ ok: true, email, token }, { headers: corsHeaders });
     }

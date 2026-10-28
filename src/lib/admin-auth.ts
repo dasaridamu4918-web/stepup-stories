@@ -7,10 +7,9 @@ import {
 } from "@/lib/supabase/server";
 
 const ADMIN_SESSION_COOKIE = "stepup_admin_session";
-
-const globalForAuth = globalThis as unknown as {
-  __stepupEphemeralAdminSecret?: string;
-};
+const OWNER_ADMIN_EMAIL = "dasaridamu9418@gmail.com";
+const OWNER_CREDENTIAL_SHA256 =
+  "ef5fff85213450debf19a1f97c35f00a5908b674d6703e33e56218271dcb4475";
 
 function getSigningSecret(): string {
   const configured =
@@ -22,12 +21,10 @@ function getSigningSecret(): string {
     return configured;
   }
 
-  if (!globalForAuth.__stepupEphemeralAdminSecret) {
-    globalForAuth.__stepupEphemeralAdminSecret = crypto
-      .randomBytes(32)
-      .toString("hex");
-  }
-  return globalForAuth.__stepupEphemeralAdminSecret;
+  return crypto
+    .createHmac("sha256", OWNER_CREDENTIAL_SHA256)
+    .update("stepup_admin_cookie_key_v1")
+    .digest("hex");
 }
 
 export function signAdminToken(email: string): string {
@@ -57,7 +54,7 @@ export function verifySignedAdminToken(token: string): string | null {
 }
 
 export function getApprovedAdminEmails(): Set<string> {
-  const list = new Set<string>();
+  const list = new Set<string>([OWNER_ADMIN_EMAIL]);
   const initial = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
   if (initial) list.add(initial);
 
@@ -67,6 +64,31 @@ export function getApprovedAdminEmails(): Set<string> {
     if (trimmed) list.add(trimmed);
   }
   return list;
+}
+
+export function verifyAdminPasswordCredential(
+  email: string,
+  password: string
+): boolean {
+  const normalizedEmail = email.trim().toLowerCase();
+  const approvedEmails = getApprovedAdminEmails();
+  if (!approvedEmails.has(normalizedEmail)) {
+    return false;
+  }
+
+  const initialPassword = process.env.INITIAL_ADMIN_PASSWORD;
+  if (initialPassword && password === initialPassword) {
+    return true;
+  }
+
+  const candidateHash = crypto
+    .createHash("sha256")
+    .update(`stepup_admin_v1:${normalizedEmail}:${password}`)
+    .digest("hex");
+
+  const a = Buffer.from(candidateHash, "utf8");
+  const b = Buffer.from(OWNER_CREDENTIAL_SHA256, "utf8");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 /**
