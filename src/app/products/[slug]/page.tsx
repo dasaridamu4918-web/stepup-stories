@@ -5,10 +5,11 @@ import { notFound } from "next/navigation";
 import {
   getProductBySlug,
   getPublishedProducts,
-  getSiteSettings
+  getSiteSettings,
+  isOnlinePaymentProviderConfigured
 } from "@/lib/repository";
 import { ProductDetailGallery } from "@/components/ProductDetailGallery";
-import { EnquiryForm } from "@/components/EnquiryForm";
+import { ProductCheckoutFlow } from "@/components/ProductCheckoutFlow";
 
 export const revalidate = 60;
 
@@ -43,7 +44,7 @@ export async function generateMetadata({
 }
 
 const availabilityLabels: Record<string, string> = {
-  available: "Available for Concierge Acquisition",
+  available: "In Stock • Ready for Insured Delivery",
   private_viewing_only: "Available Exclusively by Private Viewing",
   waitlist: "Edition Waitlist Open",
   archived: "Archived Collector Piece"
@@ -258,12 +259,12 @@ export default async function ProductDetailPage({
             )}
 
             {/* Primary Actions */}
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
               <a
-                href="#product-enquiry-section"
+                href="#checkout-section"
                 className="btn-luxury inline-flex items-center justify-center rounded bg-gradient-to-r from-gold-bright to-gold px-7 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-obsidian hover:brightness-110"
               >
-                Enquire About This Watch
+                Buy Now
               </a>
               <Link
                 href={`/concierge?type=private_viewing&product=${encodeURIComponent(product.slug)}&name=${encodeURIComponent(product.name)}`}
@@ -271,34 +272,39 @@ export default async function ProductDetailPage({
               >
                 Book a Private Viewing
               </Link>
+              <Link
+                href="/concierge"
+                className="btn-luxury inline-flex items-center justify-center rounded border border-gold/25 bg-surface px-5 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-cream-secondary hover:border-gold hover:text-gold-bright"
+              >
+                General Concierge
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Pre-filled Enquiry Form directly on the Product Detail page */}
+        {/* Direct Checkout Flow on the Product Detail page */}
         <section
-          id="product-enquiry-section"
-          aria-labelledby="product-enquiry-heading"
-          className="mt-20 border-t border-gold/20 pt-16"
+          id="checkout-section"
+          aria-labelledby="product-checkout-heading"
+          className="mt-20 scroll-mt-24 border-t border-gold/20 pt-16"
         >
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto max-w-6xl">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">
-              Direct Concierge Consultation
+              Direct Online Checkout
             </p>
             <h2
-              id="product-enquiry-heading"
+              id="product-checkout-heading"
               className="mt-2 font-serif text-3xl text-cream sm:text-4xl"
             >
-              Enquire About {product.name}
+              Buy {product.name}
             </h2>
             <p className="mt-2 mb-8 text-sm text-cream-secondary">
-              Complete the form below and our concierge will assist you with availability, private viewing arrangements, and acquisition details for {product.name}.
+              Select your quantity, review your savings and order total in Indian Rupees (₹), and enter your Indian delivery address below to complete your order.
             </p>
 
-            <EnquiryForm
-              defaultType="product_enquiry"
-              defaultProductId={product.id}
-              defaultProductName={product.name}
+            <ProductCheckoutFlow
+              product={product}
+              onlinePaymentConfigured={isOnlinePaymentProviderConfigured()}
             />
           </div>
         </section>

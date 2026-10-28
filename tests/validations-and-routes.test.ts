@@ -17,6 +17,7 @@ import {
 } from "@/lib/repository";
 import { GET as getAdminCatalog, POST as postAdminCatalog } from "@/app/api/admin/catalog/route";
 import { GET as getMobileOrders } from "@/app/api/mobile/orders/route";
+import { GET as getWebsiteOrders, POST as postWebsiteOrder } from "@/app/api/orders/route";
 import { NextRequest } from "next/server";
 
 describe("STEPUP STORIES Zod Validation & Input Sanitization", () => {
@@ -262,5 +263,94 @@ describe("STEPUP STORIES Form API Routes (Enquiry & Newsletter)", () => {
     const dashboardData = await getAdminDashboardData();
     expect(dashboardData.customers.length).toBeGreaterThanOrEqual(1);
     expect(dashboardData.auditLogs.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("POST & GET /api/orders supports website COD checkout, rejects online payment when provider is unconfigured, and restricts customer lookup to their own order", async () => {
+    // 1. Rejects online payment on website when RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not configured
+    const unconfiguredOnlineRes = await postWebsiteOrder(
+      new NextRequest("http://localhost:3000/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name: "Priya Kapoor",
+          customer_email: "priya@example.com",
+          customer_phone: "9811122233",
+          delivery_address: {
+            address_line1: "45 MG Road",
+            city: "Bengaluru",
+            state: "Karnataka",
+            pincode: "560001"
+          },
+          items: [
+            {
+              product_id: "22222222-2222-4222-8222-222222222224",
+              slug: "black-dial-gold-tone-watch",
+              name: "Black Dial Gold-Tone Watch",
+              unit_price: 2499,
+              original_unit_price: 2899,
+              quantity: 1
+            }
+          ],
+          payment_method: "razorpay",
+          source: "website"
+        })
+      })
+    );
+    expect(unconfiguredOnlineRes.status).toBe(400);
+
+    // 2. Creates a website Cash on Delivery order and returns order_number
+    const codRes = await postWebsiteOrder(
+      new NextRequest("http://localhost:3000/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name: "Priya Kapoor",
+          customer_email: "priya@example.com",
+          customer_phone: "9811122233",
+          delivery_address: {
+            address_line1: "45 MG Road",
+            city: "Bengaluru",
+            state: "Karnataka",
+            pincode: "560001"
+          },
+          items: [
+            {
+              product_id: "22222222-2222-4222-8222-222222222224",
+              slug: "black-dial-gold-tone-watch",
+              name: "Black Dial Gold-Tone Watch",
+              unit_price: 2499,
+              original_unit_price: 2899,
+              quantity: 2
+            }
+          ],
+          payment_method: "cod",
+          source: "website"
+        })
+      })
+    );
+    expect(codRes.status).toBe(201);
+    const codJson = (await codRes.json()) as {
+      ok: boolean;
+      order: { order_number: string; final_total: number; discount_total: number };
+    };
+    expect(codJson.ok).toBe(true);
+    expect(codJson.order.final_total).toBe(4998);
+    expect(codJson.order.discount_total).toBe(800);
+
+    // 3. Customer can view ONLY their own order when order_number + matching phone are provided
+    const ownLookupRes = await getWebsiteOrders(
+      new NextRequest(
+        `http://localhost:3000/api/orders?order_number=${codJson.order.order_number}&phone=9811122233`
+      )
+    );
+    expect(ownLookupRes.status).toBe(200);
+
+    // 4. Mismatched phone is rejected with 404
+    const wrongPhoneRes = await getWebsiteOrders(
+      new NextRequest(
+        `http://localhost:3000/api/orders?order_number=${codJson.order.order_number}&phone=9999999999`
+      )
+    );
+    expect(wrongPhoneRes.status).toBe(404);
   });
 });

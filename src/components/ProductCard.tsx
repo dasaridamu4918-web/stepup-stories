@@ -8,7 +8,7 @@ const availabilityBadgeMap: Record<
   { label: string; className: string }
 > = {
   available: {
-    label: "Available for Enquiry",
+    label: "Available",
     className: "border-gold/40 bg-obsidian/85 text-gold-bright"
   },
   private_viewing_only: {
@@ -163,10 +163,10 @@ export function ProductCard({ product }: { product: ProductRecord }) {
               Details
             </Link>
             <Link
-              href={`/concierge?product=${encodeURIComponent(product.slug)}&name=${encodeURIComponent(product.name)}`}
+              href={`/products/${encodeURIComponent(product.slug)}#checkout-section`}
               className="btn-luxury rounded bg-gold px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-obsidian hover:bg-gold-bright"
             >
-              Enquire
+              Buy Now
             </Link>
           </div>
         </div>

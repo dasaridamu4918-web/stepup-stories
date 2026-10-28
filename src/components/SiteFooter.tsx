@@ -75,6 +75,11 @@ export function SiteFooter({
                 </Link>
               </li>
               <li>
+                <Link href="/orders/track" className="transition hover:text-gold-bright">
+                  Track Your Order
+                </Link>
+              </li>
+              <li>
                 <Link href="/about" className="transition hover:text-gold-bright">
                   Brand Story &amp; Craft
                 </Link>

@@ -1236,6 +1236,13 @@ export async function addAdminProductImage(input: {
   return imgRecord;
 }
 
+export function isOnlinePaymentProviderConfigured(): boolean {
+  return Boolean(
+    process.env.RAZORPAY_KEY_ID?.trim() &&
+      process.env.RAZORPAY_KEY_SECRET?.trim()
+  );
+}
+
 export async function deleteAdminProductImage(imageId: string) {
   if (isServiceRoleConfigured()) {
     const service = createSupabaseServiceClient();
