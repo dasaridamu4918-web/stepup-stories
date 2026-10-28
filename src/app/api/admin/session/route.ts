@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   clearAdminFallbackCookie,
+  getApprovedAdminEmails,
   setAdminFallbackCookie
 } from "@/lib/admin-auth";
 import {
@@ -8,6 +9,16 @@ import {
   createSupabaseServiceClient,
   isSupabaseConfigured
 } from "@/lib/supabase/server";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization"
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
 
 export async function POST(request: Request) {
   try {
@@ -23,7 +34,7 @@ export async function POST(request: Request) {
         const supabase = createSupabaseServerClient();
         await supabase?.auth.signOut();
       }
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: true }, { headers: corsHeaders });
     }
 
     const email = body.email?.trim().toLowerCase() ?? "";
@@ -32,7 +43,7 @@ export async function POST(request: Request) {
     if (!email || !password) {
       return NextResponse.json(
         { ok: false, error: "Email and password are required." },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -62,22 +73,23 @@ export async function POST(request: Request) {
                 error:
                   "Your account is not listed in the authorised admins table. Access denied."
               },
-              { status: 403 }
+              { status: 403, headers: corsHeaders }
             );
           }
 
-          return NextResponse.json({ ok: true, email });
+          const token = setAdminFallbackCookie(email);
+          return NextResponse.json({ ok: true, email, token }, { headers: corsHeaders });
         }
       }
     }
 
-    // 2. Check INITIAL_ADMIN_EMAIL & INITIAL_ADMIN_PASSWORD env variables
-    const initialEmail = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
+    // 2. Check INITIAL_ADMIN_EMAIL / APPROVED_ADMIN_EMAILS & INITIAL_ADMIN_PASSWORD env variables
+    const approvedEmails = getApprovedAdminEmails();
     const initialPassword = process.env.INITIAL_ADMIN_PASSWORD;
 
-    if (initialEmail && initialPassword && email === initialEmail && password === initialPassword) {
-      setAdminFallbackCookie(email);
-      return NextResponse.json({ ok: true, email });
+    if (approvedEmails.has(email) && initialPassword && password === initialPassword) {
+      const token = setAdminFallbackCookie(email);
+      return NextResponse.json({ ok: true, email, token }, { headers: corsHeaders });
     }
 
     return NextResponse.json(
@@ -86,12 +98,12 @@ export async function POST(request: Request) {
         error:
           "Invalid admin credentials or Supabase Auth / INITIAL_ADMIN_EMAIL is not configured."
       },
-      { status: 401 }
+      { status: 401, headers: corsHeaders }
     );
   } catch {
     return NextResponse.json(
       { ok: false, error: "Authentication service error." },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

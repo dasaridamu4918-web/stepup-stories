@@ -1,6 +1,10 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { verifyAdminRequest } from "@/lib/admin-auth";
+import {
+  isAdminAlertServiceConfigured,
+  isCustomerNotificationServiceConfigured
+} from "@/lib/email";
 import { getAdminDashboardData } from "@/lib/repository";
 import { AdminDashboardClient } from "@/components/AdminDashboardClient";
 
@@ -22,6 +26,13 @@ export default async function AdminPage() {
       initialProducts={data.products}
       initialEnquiries={data.enquiries}
       initialSubscribers={data.subscribers}
+      initialOrders={data.orders}
+      initialCustomers={data.customers}
+      initialAuditLogs={data.auditLogs}
+      initialAlertStatus={{
+        emailConfigured: isAdminAlertServiceConfigured(),
+        customerNotificationConfigured: isCustomerNotificationServiceConfigured()
+      }}
     />
   );
 }

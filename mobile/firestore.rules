@@ -2,23 +2,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: Is user signed in?
+    // Deny all access by default unless explicitly permitted below
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper: Role-based access check for store admins
+    // Approved Admin verification: requires custom claim `admin == true` OR
+    // verified `role == 'admin'` in `admins/{uid}` (customers can never write to `admins/{uid}`)
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.admin == true ||
-        (
-          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-        )
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
 
-    // Helper: Validate Indian PIN code (6 digits, starts 1-9) and 10-digit Indian phone
     function isValidIndianAddress(addr) {
       return addr is map
         && addr.full_name is string && addr.full_name.size() >= 2
@@ -29,6 +30,12 @@ service cloud.firestore {
         && addr.state is string && addr.state.size() >= 2;
     }
 
+    // 0. Approved Admins Registry: Customers can NEVER create or modify admin roles
+    match /admins/{adminUid} {
+      allow read: if isAdmin();
+      allow write: if false; // Managed exclusively via Firebase Admin SDK / Server
+    }
+
     // 1. Collections: Public read, Admin-only write
     match /collections/{collectionId} {
       allow read: if true;
@@ -36,7 +43,6 @@ service cloud.firestore {
     }
 
     // 2. Products: Public read, Admin-only write
-    // Enforces that brand_verified is boolean and prices are positive INR numbers
     match /products/{productId} {
       allow read: if true;
       allow create, update: if isAdmin()
@@ -50,7 +56,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 3. Users: Users can read/update their own profile (except role elevation); Admins can read/write all
+    // 3. Users: Users can read/update only their own customer profile and can NEVER set role to 'admin'
     match /users/{userId} {
       allow read: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
       allow create: if isSignedIn()
@@ -59,7 +65,7 @@ service cloud.firestore {
       allow update: if (
         isSignedIn()
         && request.auth.uid == userId
-        && request.resource.data.role == resource.data.role
+        && request.resource.data.role == 'customer'
       ) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -69,22 +75,27 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // 5. Orders: Supports both Guest Checkout and Authenticated Checkout
+    // 5. Orders:
+    // - Clients can create a new order ONLY with `order_status == 'new'` and `payment_status == 'pending'`.
+    //   Clients can NEVER mark an order as 'paid' directly (only server webhook/verification can).
+    // - Customers can read only their own orders; approved admins can read and update all orders.
     match /orders/{orderId} {
-      // Customers can create an order with valid Indian delivery address & initial "placed"/"confirmed" status
       allow create: if isValidIndianAddress(request.resource.data.shipping_address)
         && request.resource.data.currency == 'INR'
         && request.resource.data.total_payable is number
         && request.resource.data.total_payable > 0
         && request.resource.data.payment_method in ['cod', 'razorpay']
-        && request.resource.data.status in ['placed', 'confirmed'];
+        && request.resource.data.payment_status in ['pending', 'pending_cod', 'pending_online']
+        && request.resource.data.status in ['new', 'placed'];
 
-      // Signed-in users can read their own orders; guests can read a specific order by ID; admins can read all
-      allow get: if true;
-      allow list: if isAdmin() || (isSignedIn() && resource.data.user_id == request.auth.uid);
-
-      // Only admins (or Cloud Functions with Admin SDK) can update order status, stock, or payment state
+      allow get, list: if isAdmin() || (isSignedIn() && resource.data.user_id == request.auth.uid);
       allow update, delete: if isAdmin();
+    }
+
+    // 6. Admin Audit Logs: Append-only for approved admins; never editable or deletable
+    match /audit_logs/{logId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
     }
   }
 }

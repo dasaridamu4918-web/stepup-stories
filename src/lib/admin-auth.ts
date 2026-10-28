@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import {
   createSupabaseServerClient,
   createSupabaseServiceClient,
@@ -8,41 +8,80 @@ import {
 
 const ADMIN_SESSION_COOKIE = "stepup_admin_session";
 
-function signToken(email: string): string {
-  const secret =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.INITIAL_ADMIN_PASSWORD ||
-    "stepup-local-secret-key";
-  const hmac = crypto
-    .createHmac("sha256", secret)
-    .update(email.toLowerCase())
-    .digest("hex");
-  return `${Buffer.from(email.toLowerCase()).toString("base64url")}.${hmac}`;
+const globalForAuth = globalThis as unknown as {
+  __stepupEphemeralAdminSecret?: string;
+};
+
+function getSigningSecret(): string {
+  const configured =
+    process.env.ADMIN_SESSION_SECRET?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    process.env.INITIAL_ADMIN_PASSWORD?.trim();
+
+  if (configured) {
+    return configured;
+  }
+
+  if (!globalForAuth.__stepupEphemeralAdminSecret) {
+    globalForAuth.__stepupEphemeralAdminSecret = crypto
+      .randomBytes(32)
+      .toString("hex");
+  }
+  return globalForAuth.__stepupEphemeralAdminSecret;
 }
 
-function verifySignedToken(token: string): string | null {
+export function signAdminToken(email: string): string {
+  const normalized = email.trim().toLowerCase();
+  const hmac = crypto
+    .createHmac("sha256", getSigningSecret())
+    .update(normalized)
+    .digest("hex");
+  return `${Buffer.from(normalized).toString("base64url")}.${hmac}`;
+}
+
+export function verifySignedAdminToken(token: string): string | null {
   const parts = token.split(".");
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   try {
     const email = Buffer.from(parts[0], "base64url").toString("utf8");
-    const expected = signToken(email);
-    if (expected === token) return email;
+    const expected = signAdminToken(email);
+    const a = Buffer.from(token, "utf8");
+    const b = Buffer.from(expected, "utf8");
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+      return email;
+    }
     return null;
   } catch {
     return null;
   }
 }
 
+export function getApprovedAdminEmails(): Set<string> {
+  const list = new Set<string>();
+  const initial = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
+  if (initial) list.add(initial);
+
+  const extra = process.env.APPROVED_ADMIN_EMAILS?.split(",") ?? [];
+  for (const item of extra) {
+    const trimmed = item.trim().toLowerCase();
+    if (trimmed) list.add(trimmed);
+  }
+  return list;
+}
+
 /**
- * Verifies that the current request belongs to an authorised administrator.
- * Being logged in via Supabase Auth alone is NOT enough: the user must exist
- * in the `public.admins` table (or have an explicit `app_metadata.role === 'admin'` claim).
+ * Verifies on the server that the current request belongs to an approved administrator.
+ * Being logged in alone is NOT sufficient: the user must exist in `public.admins`,
+ * carry a verified server `app_metadata.role === 'admin'` claim, or hold a valid
+ * server-signed session token for an approved admin email.
  */
-export async function verifyAdminRequest(): Promise<{
+export async function verifyAdminRequest(
+  explicitAuthHeader?: string | null
+): Promise<{
   authorized: boolean;
   email: string | null;
 }> {
-  // 1. Check Supabase Auth + `admins` table authorisation
+  // 1. Check Supabase Auth + `public.admins` table authorisation
   if (isSupabaseConfigured()) {
     const supabase = createSupabaseServerClient();
     if (supabase) {
@@ -54,7 +93,7 @@ export async function verifyAdminRequest(): Promise<{
       if (!error && user && user.email) {
         const roleClaim = user.app_metadata?.role;
         if (roleClaim === "admin" || roleClaim === "superadmin") {
-          return { authorized: true, email: user.email };
+          return { authorized: true, email: user.email.toLowerCase() };
         }
 
         const service = createSupabaseServiceClient() ?? supabase;
@@ -65,35 +104,57 @@ export async function verifyAdminRequest(): Promise<{
           .maybeSingle();
 
         if (adminRow) {
-          return { authorized: true, email: user.email };
+          return { authorized: true, email: user.email.toLowerCase() };
         }
       }
     }
   }
 
-  // 2. Check signed server session cookie (when INITIAL_ADMIN_EMAIL / PASSWORD are used directly)
-  const cookieStore = cookies();
-  const sessionCookie = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
-  if (sessionCookie) {
-    const email = verifySignedToken(sessionCookie);
-    const allowedEmail = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
-    if (email && allowedEmail && email === allowedEmail) {
-      return { authorized: true, email };
+  const approvedEmails = getApprovedAdminEmails();
+
+  // 2. Check Authorization: Bearer <signed_token> header (for mobile app / API clients)
+  try {
+    const authHeader =
+      explicitAuthHeader ?? headers().get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const bearerToken = authHeader.slice(7).trim();
+      const verifiedEmail = verifySignedAdminToken(bearerToken);
+      if (verifiedEmail && approvedEmails.has(verifiedEmail)) {
+        return { authorized: true, email: verifiedEmail };
+      }
     }
+  } catch {
+    // headers() outside request context
+  }
+
+  // 3. Check signed HTTP-only server session cookie
+  try {
+    const cookieStore = cookies();
+    const sessionCookie = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+    if (sessionCookie) {
+      const email = verifySignedAdminToken(sessionCookie);
+      if (email && approvedEmails.has(email)) {
+        return { authorized: true, email };
+      }
+    }
+  } catch {
+    // cookies() outside request context
   }
 
   return { authorized: false, email: null };
 }
 
-export function setAdminFallbackCookie(email: string): void {
+export function setAdminFallbackCookie(email: string): string {
+  const token = signAdminToken(email);
   const cookieStore = cookies();
-  cookieStore.set(ADMIN_SESSION_COOKIE, signToken(email), {
+  cookieStore.set(ADMIN_SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60 * 12
   });
+  return token;
 }
 
 export function clearAdminFallbackCookie(): void {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { markOrderPaidByProvider } from "@/lib/repository";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,7 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as {
+      store_order_id?: string;
       razorpay_order_id?: string;
       razorpay_payment_id?: string;
       razorpay_signature?: string;
@@ -35,12 +37,19 @@ export async function POST(request: NextRequest) {
 
     // Simulated test mode verification when server secrets are not configured yet
     if (!keySecret && orderId.startsWith("order_test_")) {
+      const updatedOrder = await markOrderPaidByProvider({
+        orderId: body.store_order_id,
+        razorpayOrderId: orderId,
+        razorpayPaymentId: paymentId
+      });
+
       return NextResponse.json(
         {
           verified: true,
           test_mode: true,
           order_id: orderId,
           payment_id: paymentId,
+          store_order: updatedOrder,
           verified_at: new Date().toISOString()
         },
         { status: 200, headers: corsHeaders }
@@ -76,12 +85,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const updatedOrder = await markOrderPaidByProvider({
+      orderId: body.store_order_id,
+      razorpayOrderId: orderId,
+      razorpayPaymentId: paymentId
+    });
+
     return NextResponse.json(
       {
         verified: true,
         test_mode: (process.env.RAZORPAY_KEY_ID || "").startsWith("rzp_test_"),
         order_id: orderId,
         payment_id: paymentId,
+        store_order: updatedOrder,
         verified_at: new Date().toISOString()
       },
       { status: 200, headers: corsHeaders }

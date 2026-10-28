@@ -95,6 +95,8 @@ export const adminProductSchema = z.object({
   short_description: optionalSanitizedString(320, "Short description"),
   description: optionalSanitizedString(5000, "Full description"),
   price_amount: z.number().nonnegative().nullable().optional(),
+  original_price_amount: z.number().nonnegative().nullable().optional(),
+  stock_count: z.number().int().nonnegative().optional().default(10),
   price_currency: optionalSanitizedString(10, "Currency"),
   price_display: optionalSanitizedString(80, "Display price"),
   availability_status: z.enum([
@@ -170,4 +172,76 @@ export const adminEnquiryUpdateSchema = z.object({
   id: z.string().uuid(),
   status: z.enum(["new", "in_progress", "closed"]),
   internal_notes: z.string().max(4000).transform(sanitizeText)
+});
+
+// 7. STORE ORDER CREATION SCHEMA (Shared Website & Mobile App — Collects ONLY fulfillment info)
+export const storeOrderItemSchema = z.object({
+  product_id: z.string().min(1),
+  slug: sanitizedString(1, 160, "Product slug"),
+  name: sanitizedString(1, 200, "Product name"),
+  collection_name: optionalSanitizedString(120, "Collection name").nullable().optional(),
+  selected_options: optionalSanitizedString(160, "Selected options").nullable().optional(),
+  quantity: z.number().int().min(1).max(20),
+  unit_price: z.number().nonnegative(),
+  original_unit_price: z.number().nonnegative().optional(),
+  image_url: z.string().max(600).optional().nullable()
+});
+
+export const createStoreOrderSchema = z.object({
+  user_id: z.string().max(120).optional().nullable(),
+  customer_name: sanitizedString(2, 120, "Customer full name"),
+  customer_email: z
+    .string()
+    .trim()
+    .max(160)
+    .email("Please enter a valid email address.")
+    .transform((v) => v.toLowerCase()),
+  customer_phone: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/\D/g, "").slice(-10))
+    .refine((v) => /^[6-9][0-9]{9}$/.test(v), {
+      message: "Please enter a valid 10-digit Indian mobile number."
+    }),
+  delivery_address: z.object({
+    address_line1: sanitizedString(3, 200, "Address line 1"),
+    address_line2: optionalSanitizedString(200, "Address line 2"),
+    landmark: optionalSanitizedString(160, "Landmark"),
+    city: sanitizedString(2, 100, "City"),
+    state: sanitizedString(2, 100, "State"),
+    pincode: z
+      .string()
+      .trim()
+      .refine((v) => /^[1-9][0-9]{5}$/.test(v), {
+        message: "Please enter a valid 6-digit Indian PIN code."
+      })
+  }),
+  items: z.array(storeOrderItemSchema).min(1, "Order must contain at least one watch."),
+  delivery_fee: z.number().nonnegative().default(0),
+  payment_method: z.enum(["cod", "razorpay"]).default("cod"),
+  // Only safe provider transaction reference IDs may be passed — never card numbers or secrets
+  payment_reference: optionalSanitizedString(160, "Payment reference"),
+  source: z.enum(["website", "mobile_app"]).default("website")
+});
+
+export type CreateStoreOrderInput = z.infer<typeof createStoreOrderSchema>;
+
+// 8. ADMIN ORDER STATUS & TRACKING UPDATE SCHEMA
+export const adminOrderStatusUpdateSchema = z.object({
+  id: z.string().min(1),
+  order_status: z.enum([
+    "new",
+    "confirmed",
+    "processing",
+    "shipped",
+    "delivered",
+    "cancelled",
+    "refund_requested"
+  ]),
+  payment_status: z
+    .enum(["pending", "paid", "failed", "refunded"])
+    .optional(),
+  courier_name: optionalSanitizedString(120, "Courier name"),
+  tracking_number: optionalSanitizedString(120, "Tracking number"),
+  note: optionalSanitizedString(500, "Status change note")
 });

@@ -51,6 +51,7 @@ export interface ProductRecord {
   price_currency: string | null;
   price_display: string | null;
   availability_status: AvailabilityStatus;
+  stock_count?: number;
   featured: boolean;
   published: boolean;
   sort_order: number;
@@ -58,6 +59,121 @@ export interface ProductRecord {
   images: ProductImageRecord[];
   created_at: string;
   updated_at?: string;
+}
+
+export type OrderStatusStage =
+  | "new"
+  | "confirmed"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "refund_requested";
+
+export type OrderPaymentMethod = "cod" | "razorpay";
+
+export type OrderPaymentStatus = "pending" | "paid" | "failed" | "refunded";
+
+export interface OrderStatusHistoryEntry {
+  from_status: OrderStatusStage | null;
+  to_status: OrderStatusStage;
+  changed_by: string;
+  changed_at: string;
+  note?: string | null;
+}
+
+export interface StoreOrderItem {
+  product_id: string;
+  slug: string;
+  name: string;
+  collection_name: string | null;
+  selected_options: string | null;
+  quantity: number;
+  unit_price: number;
+  original_unit_price: number;
+  line_total: number;
+  image_url: string | null;
+}
+
+export interface OrderDeliveryAddress {
+  full_name: string;
+  email: string;
+  phone: string;
+  address_line1: string;
+  address_line2?: string | null;
+  landmark?: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+export interface StoreOrderRecord {
+  id: string;
+  order_number: string;
+  user_id: string | null;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  delivery_address: OrderDeliveryAddress;
+  items: StoreOrderItem[];
+  item_subtotal: number;
+  discount_total: number;
+  delivery_fee: number;
+  final_total: number;
+  currency: "INR";
+  payment_method: OrderPaymentMethod;
+  payment_status: OrderPaymentStatus;
+  /** Safe provider reference only (e.g. Razorpay order_id / payment_id) — never card numbers or secrets */
+  payment_reference: string | null;
+  order_status: OrderStatusStage;
+  courier_name: string | null;
+  tracking_number: string | null;
+  status_history: OrderStatusHistoryEntry[];
+  source: "website" | "mobile_app";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerSummaryRecord {
+  customer_key: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  city: string;
+  state: string;
+  total_orders: number;
+  paid_orders_count: number;
+  total_paid_spent: number;
+  last_order_at: string;
+  orders: {
+    id: string;
+    order_number: string;
+    created_at: string;
+    final_total: number;
+    order_status: OrderStatusStage;
+    payment_status: OrderPaymentStatus;
+  }[];
+}
+
+export type AdminAuditActionType =
+  | "order_status_updated"
+  | "order_refund_updated"
+  | "orders_csv_exported"
+  | "product_created"
+  | "product_price_or_stock_updated"
+  | "product_deleted"
+  | "collection_updated"
+  | "settings_updated";
+
+export interface AdminAuditLogRecord {
+  id: string;
+  action_type: AdminAuditActionType;
+  actor_email: string;
+  target_type: "order" | "product" | "collection" | "orders_export" | "settings";
+  target_id: string;
+  summary: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
 }
 
 export type EnquiryType = "product_enquiry" | "private_viewing" | "general_concierge";

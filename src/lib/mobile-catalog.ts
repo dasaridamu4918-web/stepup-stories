@@ -396,11 +396,18 @@ export function toAbsoluteAssetUrl(url: string, baseUrl = DEFAULT_BASE_URL): str
   return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
-export function buildMobileCatalog(baseUrl = DEFAULT_BASE_URL): {
+export function buildMobileCatalog(
+  baseUrl = DEFAULT_BASE_URL,
+  liveProducts?: ProductRecord[],
+  liveCollections?: CollectionRecord[]
+): {
   collections: MobileCollectionRecord[];
   products: MobileProductRecord[];
 } {
-  const validProducts = defaultProducts.filter(
+  const sourceProducts = liveProducts ?? defaultProducts;
+  const sourceCollections = liveCollections ?? defaultCollections;
+
+  const validProducts = sourceProducts.filter(
     (p) =>
       p.published &&
       p.images &&
@@ -423,12 +430,16 @@ export function buildMobileCatalog(baseUrl = DEFAULT_BASE_URL): {
         : 0;
 
     const collection =
-      defaultCollections.find((c) => c.id === p.collection_id) ?? defaultCollections[0]!;
+      sourceCollections.find((c) => c.id === p.collection_id) ?? sourceCollections[0]!;
 
     const genericName = override ? override.generic_name : p.name;
     // By default, brand_verified is false unless verified by store admin
     const brandVerified = false;
     const publicName = brandVerified && override?.brand_candidate ? p.name : genericName;
+    const stockQuantity =
+      typeof p.stock_count === "number"
+        ? p.stock_count
+        : (override?.stock_quantity ?? 10);
 
     return {
       id: p.id,
@@ -441,8 +452,8 @@ export function buildMobileCatalog(baseUrl = DEFAULT_BASE_URL): {
       collection_id: collection.id,
       collection_slug: collection.slug,
       collection_name: collection.name,
-      short_description: override?.short_description ?? p.short_description ?? "",
-      description: override?.description ?? p.description ?? "",
+      short_description: p.short_description ?? override?.short_description ?? "",
+      description: p.description ?? override?.description ?? "",
       price_amount: price,
       original_price_amount: originalPrice,
       savings_amount: savingsAmount,
@@ -451,12 +462,17 @@ export function buildMobileCatalog(baseUrl = DEFAULT_BASE_URL): {
       price_display: formatInr(price),
       original_price_display: formatInr(originalPrice),
       savings_display: savingsAmount > 0 ? `Save ${formatInr(savingsAmount)}` : "",
-      stock_quantity: override?.stock_quantity ?? 10,
-      availability_status: "available",
+      stock_quantity: stockQuantity,
+      availability_status:
+        stockQuantity <= 0
+          ? "out_of_stock"
+          : p.availability_status === "archived"
+            ? "archived"
+            : "available",
       featured: p.featured,
       published: p.published,
       sort_order: p.sort_order,
-      specs: override?.specs ?? p.specs,
+      specs: p.specs?.length ? p.specs : (override?.specs ?? []),
       images: p.images.map((img) => ({
         id: img.id,
         url: toAbsoluteAssetUrl(img.url, baseUrl),
@@ -471,7 +487,7 @@ export function buildMobileCatalog(baseUrl = DEFAULT_BASE_URL): {
     };
   });
 
-  const collections: MobileCollectionRecord[] = defaultCollections
+  const collections: MobileCollectionRecord[] = sourceCollections
     .filter((c: CollectionRecord) => c.published)
     .map((c: CollectionRecord) => ({
       id: c.id,

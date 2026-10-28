@@ -184,7 +184,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({
           setOrders(JSON.parse(storedOrders));
         }
         if (storedUser && !isFirebaseConfigured) {
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser) as UserProfile;
+          // Never restore an unverified local admin role without a server-issued admin token
+          if (parsedUser.role === "admin" && !parsedUser.admin_token) {
+            parsedUser.role = "customer";
+          }
+          setUser(parsedUser);
         }
         if (storedAddress) {
           setSavedAddress(JSON.parse(storedAddress));
@@ -209,10 +214,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({
           tokenResult.claims.admin === true ? "admin" : "customer";
 
         if (db) {
+          // Only trust the server-protected `admins/{uid}` registry, never client-writable `users/{uid}`
+          const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
+          if (adminDoc.exists()) {
+            role = "admin";
+          }
           const userDoc = await getDoc(doc(db, "users", fbUser.uid));
           if (userDoc.exists()) {
             const data = userDoc.data();
-            if (data.role === "admin") role = "admin";
             if (data.saved_address) {
               setSavedAddress(data.saved_address as IndianDeliveryAddress);
             }
@@ -441,6 +450,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({
         return { ok: false, error: "Please enter both email and password." };
       }
 
+      // 1. Server-verified Admin Authentication check (/api/admin/session)
+      try {
+        const adminRes = await fetch(`${WEBSITE_BASE_URL}/api/admin/session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail, password })
+        });
+        if (adminRes.ok) {
+          const adminData = (await adminRes.json()) as {
+            ok?: boolean;
+            token?: string;
+          };
+          if (adminData.ok && adminData.token) {
+            const adminProfile: UserProfile = {
+              uid: `admin_${Date.now()}`,
+              email: normalizedEmail,
+              display_name: "Store Administrator",
+              role: "admin",
+              admin_token: adminData.token
+            };
+            setUser(adminProfile);
+            await AsyncStorage.setItem(
+              STORAGE_KEYS.USER,
+              JSON.stringify(adminProfile)
+            );
+            return { ok: true };
+          }
+        }
+      } catch {
+        // Continue to standard customer auth if server admin check is unreachable
+      }
+
       if (isFirebaseConfigured && auth) {
         try {
           await signInWithEmailAndPassword(auth, normalizedEmail, password);
@@ -456,23 +497,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      // Local Auth mode when Firebase keys are not yet configured in .env:
-      // Role-based access: only the designated store owner admin email is granted 'admin' role
-      // when authenticated with the admin password; all other accounts receive 'customer' role.
-      const adminEmails = (
-        process.env.EXPO_PUBLIC_ADMIN_EMAILS || "admin@stepupstories.in"
-      )
-        .split(",")
-        .map((e) => e.trim().toLowerCase());
-
-      const isStoreAdmin =
-        adminEmails.includes(normalizedEmail) && password.length >= 6;
-
+      // Customer sign-in fallback: never grants 'admin' role locally.
+      // Admin role is strictly granted by server /api/admin/session or Firebase admins/{uid}.
       const profile: UserProfile = {
         uid: `user_${Date.now()}`,
         email: normalizedEmail,
         display_name: normalizedEmail.split("@")[0] || "Collector",
-        role: isStoreAdmin ? "admin" : "customer"
+        role: "customer",
+        admin_token: null
       };
       setUser(profile);
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(profile));
@@ -579,13 +611,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({
         };
       });
 
-      const initialStatus: OrderStatus = "confirmed";
+      const initialStatus: OrderStatus = "placed";
+      const hasProviderConfirmedPayment = Boolean(
+        params.paymentMethod === "razorpay" &&
+          params.razorpayOrderId &&
+          params.razorpayPaymentId
+      );
       const paymentStatus =
         params.paymentMethod === "cod"
           ? "pending_cod"
-          : params.testMode
-          ? "paid_test_mode"
-          : "paid";
+          : hasProviderConfirmedPayment
+            ? params.testMode
+              ? "paid_test_mode"
+              : "paid"
+            : "pending_online";
 
       const newOrder: OrderRecord = {
         id: orderId,
@@ -611,21 +650,48 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({
             status: "placed",
             label: "Order Placed",
             timestamp: now
-          },
-          {
-            status: "confirmed",
-            label:
-              params.paymentMethod === "cod"
-                ? "Confirmed (Cash on Delivery)"
-                : params.testMode
-                ? "Confirmed (Razorpay Test Mode Verified)"
-                : "Confirmed (Razorpay Online Payment Verified)",
-            timestamp: now
           }
         ],
         created_at: now,
         updated_at: now
       };
+
+      // Sync order to STEPUP STORIES Backend API so Admin Dashboard receives it immediately
+      try {
+        await fetch(`${WEBSITE_BASE_URL}/api/mobile/orders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer_name: params.shippingAddress.full_name,
+            customer_email:
+              params.shippingAddress.email || "guest@stepupstories.in",
+            customer_phone: params.shippingAddress.phone,
+            delivery_address: {
+              address_line1: params.shippingAddress.address_line1,
+              address_line2: params.shippingAddress.address_line2 || "",
+              landmark: params.shippingAddress.landmark || "",
+              city: params.shippingAddress.city,
+              state: params.shippingAddress.state,
+              pincode: params.shippingAddress.pincode
+            },
+            items: orderItems.map((it) => ({
+              product_id: it.product_id,
+              slug: it.slug,
+              name: it.name,
+              collection_name: it.collection_name,
+              image_url: it.image_url,
+              unit_price: it.unit_price,
+              original_unit_price: it.original_unit_price,
+              quantity: it.quantity
+            })),
+            payment_method: params.paymentMethod,
+            payment_reference: params.razorpayOrderId || "",
+            source: "mobile_app"
+          })
+        });
+      } catch {
+        // Offline tolerance
+      }
 
       // Decrement stock for ordered watches
       const updatedProducts = products.map((p) => {

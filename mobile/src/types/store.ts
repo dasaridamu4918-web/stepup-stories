@@ -134,6 +134,7 @@ export interface UserProfile {
   display_name: string;
   phone?: string;
   role: "customer" | "admin";
+  admin_token?: string | null;
   saved_address?: IndianDeliveryAddress | null;
 }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildMobileCatalog } from "@/lib/mobile-catalog";
+import { getPublishedCollections, getPublishedProducts } from "@/lib/repository";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +18,12 @@ export async function GET(request: NextRequest) {
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://stepup-stories.vercel.app";
 
-  const catalog = buildMobileCatalog(origin);
+  const [liveProducts, liveCollections] = await Promise.all([
+    getPublishedProducts(),
+    getPublishedCollections()
+  ]);
+
+  const catalog = buildMobileCatalog(origin, liveProducts, liveCollections);
 
   return NextResponse.json(
     {

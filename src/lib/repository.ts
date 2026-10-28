@@ -1,11 +1,18 @@
 import crypto from "crypto";
 import type {
+  AdminAuditActionType,
+  AdminAuditLogRecord,
   CollectionRecord,
+  CustomerSummaryRecord,
   EnquiryRecord,
   NewsletterSubscriberRecord,
+  OrderPaymentStatus,
+  OrderStatusStage,
   ProductImageRecord,
   ProductRecord,
-  SiteSettingsRecord
+  SiteSettingsRecord,
+  StoreOrderItem,
+  StoreOrderRecord
 } from "@/types/database";
 import {
   defaultCollections,
@@ -18,14 +25,20 @@ import {
   isServiceRoleConfigured,
   isSupabaseConfigured
 } from "@/lib/supabase/server";
+import {
+  sendNewOrderAdminAlert,
+  sendOrderStatusCustomerNotification
+} from "@/lib/email";
+import type { CreateStoreOrderInput } from "@/lib/validations";
 
-// In-memory store for local dev / automated tests when Supabase env vars are not set
 interface LocalMemoryStore {
   settings: SiteSettingsRecord;
   collections: CollectionRecord[];
   products: ProductRecord[];
   enquiries: EnquiryRecord[];
   subscribers: NewsletterSubscriberRecord[];
+  orders: StoreOrderRecord[];
+  auditLogs: AdminAuditLogRecord[];
 }
 
 const globalForStore = globalThis as unknown as {
@@ -34,15 +47,60 @@ const globalForStore = globalThis as unknown as {
 
 function getMemoryStore(): LocalMemoryStore {
   if (!globalForStore.__stepupMemoryStore) {
+    const initializedProducts = structuredClone(defaultProducts).map((p) => ({
+      ...p,
+      stock_count: typeof p.stock_count === "number" ? p.stock_count : 10
+    }));
     globalForStore.__stepupMemoryStore = {
       settings: structuredClone(defaultSiteSettings),
       collections: structuredClone(defaultCollections),
-      products: structuredClone(defaultProducts),
+      products: initializedProducts,
       enquiries: [],
-      subscribers: []
+      subscribers: [],
+      orders: [],
+      auditLogs: []
     };
   }
   return globalForStore.__stepupMemoryStore;
+}
+
+export async function recordAdminAuditLog(input: {
+  action_type: AdminAuditActionType;
+  actor_email: string;
+  target_type: AdminAuditLogRecord["target_type"];
+  target_id: string;
+  summary: string;
+  metadata?: Record<string, unknown>;
+}): Promise<AdminAuditLogRecord> {
+  const entry: AdminAuditLogRecord = {
+    id: crypto.randomUUID(),
+    action_type: input.action_type,
+    actor_email: input.actor_email,
+    target_type: input.target_type,
+    target_id: input.target_id,
+    summary: input.summary,
+    metadata: input.metadata ?? {},
+    created_at: new Date().toISOString()
+  };
+
+  if (isServiceRoleConfigured()) {
+    const service = createSupabaseServiceClient();
+    if (service) {
+      await service.from("admin_audit_logs").insert({
+        id: entry.id,
+        action_type: entry.action_type,
+        actor_email: entry.actor_email,
+        target_type: entry.target_type,
+        target_id: entry.target_id,
+        summary: entry.summary,
+        metadata: entry.metadata,
+        created_at: entry.created_at
+      });
+    }
+  }
+
+  getMemoryStore().auditLogs.unshift(entry);
+  return entry;
 }
 
 export async function getSiteSettings(): Promise<SiteSettingsRecord> {
@@ -154,6 +212,12 @@ function normalizeProductRow(
     price_display: row.price_display ? String(row.price_display) : null,
     availability_status:
       (row.availability_status as ProductRecord["availability_status"]) ?? "available",
+    stock_count:
+      typeof row.stock_count === "number"
+        ? row.stock_count
+        : row.stock_count !== undefined && row.stock_count !== null
+          ? Number(row.stock_count)
+          : 10,
     featured: Boolean(row.featured),
     published: Boolean(row.published),
     sort_order: typeof row.sort_order === "number" ? row.sort_order : 0,
@@ -189,6 +253,7 @@ export async function getPublishedProducts(): Promise<ProductRecord[]> {
     .products.filter((p) => p.published && p.availability_status !== "archived")
     .map((p) => ({
       ...p,
+      stock_count: typeof p.stock_count === "number" ? p.stock_count : 10,
       collection: p.collection_id ? (collectionsMap.get(p.collection_id) ?? null) : null
     }))
     .sort((a, b) => a.sort_order - b.sort_order);
@@ -205,7 +270,7 @@ export async function getProductBySlug(slug: string): Promise<ProductRecord | nu
 }
 
 // ============================================================================
-// SERVER-ONLY WRITE OPERATIONS FOR PUBLIC FORMS (Enquiries & Newsletter)
+// SERVER-ONLY WRITE OPERATIONS FOR PUBLIC FORMS & ORDERS
 // ============================================================================
 
 export async function createEnquiryRecord(
@@ -369,40 +434,311 @@ export async function unsubscribeByToken(token: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Creates a new store order from either the Website or Mobile App.
+ * - Validates and computes totals on the server.
+ * - Never marks an order as `paid` at creation time (payment_status starts as `pending`
+ *   until confirmed by the payment provider or COD collection).
+ * - Decrements product stock counts and triggers admin alerts if configured.
+ */
+export async function createStoreOrder(
+  input: CreateStoreOrderInput
+): Promise<StoreOrderRecord> {
+  const store = getMemoryStore();
+  const now = new Date().toISOString();
+  const orderNumber = `SUS-${Date.now().toString().slice(-6)}-${Math.random()
+    .toString(36)
+    .slice(2, 4)
+    .toUpperCase()}`;
+
+  const normalizedItems: StoreOrderItem[] = input.items.map((item) => {
+    const matched = store.products.find(
+      (p) => p.id === item.product_id || p.slug === item.slug
+    );
+    const unitPrice =
+      matched?.price_amount && matched.price_amount > 0
+        ? matched.price_amount
+        : item.unit_price;
+    const origPrice =
+      matched?.original_price_amount && matched.original_price_amount >= unitPrice
+        ? matched.original_price_amount
+        : Math.max(unitPrice, item.original_unit_price ?? unitPrice);
+
+    if (matched) {
+      const currentStock = typeof matched.stock_count === "number" ? matched.stock_count : 10;
+      matched.stock_count = Math.max(0, currentStock - item.quantity);
+    }
+
+    return {
+      product_id: item.product_id,
+      slug: item.slug,
+      name: matched?.name || item.name,
+      collection_name: matched?.collection?.name || item.collection_name || null,
+      selected_options: item.selected_options || null,
+      quantity: item.quantity,
+      unit_price: unitPrice,
+      original_unit_price: origPrice,
+      line_total: unitPrice * item.quantity,
+      image_url: matched?.images[0]?.url || item.image_url || null
+    };
+  });
+
+  const itemSubtotal = normalizedItems.reduce(
+    (sum, i) => sum + i.original_unit_price * i.quantity,
+    0
+  );
+  const netItemsTotal = normalizedItems.reduce((sum, i) => sum + i.line_total, 0);
+  const discountTotal = Math.max(0, itemSubtotal - netItemsTotal);
+  const deliveryFee = Math.max(0, input.delivery_fee || 0);
+  const finalTotal = netItemsTotal + deliveryFee;
+
+  const order: StoreOrderRecord = {
+    id: crypto.randomUUID(),
+    order_number: orderNumber,
+    user_id: input.user_id ?? null,
+    customer_name: input.customer_name,
+    customer_email: input.customer_email,
+    customer_phone: input.customer_phone,
+    delivery_address: {
+      full_name: input.customer_name,
+      email: input.customer_email,
+      phone: input.customer_phone,
+      address_line1: input.delivery_address.address_line1,
+      address_line2: input.delivery_address.address_line2 || null,
+      landmark: input.delivery_address.landmark || null,
+      city: input.delivery_address.city,
+      state: input.delivery_address.state,
+      pincode: input.delivery_address.pincode
+    },
+    items: normalizedItems,
+    item_subtotal: itemSubtotal,
+    discount_total: discountTotal,
+    delivery_fee: deliveryFee,
+    final_total: finalTotal,
+    currency: "INR",
+    payment_method: input.payment_method,
+    // Strictly 'pending' until confirmed by payment provider verification
+    payment_status: "pending",
+    payment_reference: input.payment_reference || null,
+    order_status: "new",
+    courier_name: null,
+    tracking_number: null,
+    status_history: [
+      {
+        from_status: null,
+        to_status: "new",
+        changed_by: "system:checkout",
+        changed_at: now,
+        note: `Order placed via ${input.source} (${input.payment_method.toUpperCase()})`
+      }
+    ],
+    source: input.source,
+    created_at: now,
+    updated_at: now
+  };
+
+  if (isServiceRoleConfigured()) {
+    const service = createSupabaseServiceClient();
+    if (service) {
+      await service.from("store_orders").insert({
+        id: order.id,
+        order_number: order.order_number,
+        user_id: order.user_id,
+        customer_name: order.customer_name,
+        customer_email: order.customer_email,
+        customer_phone: order.customer_phone,
+        delivery_address: order.delivery_address,
+        items: order.items,
+        item_subtotal: order.item_subtotal,
+        discount_total: order.discount_total,
+        delivery_fee: order.delivery_fee,
+        final_total: order.final_total,
+        currency: order.currency,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        payment_reference: order.payment_reference,
+        order_status: order.order_status,
+        courier_name: order.courier_name,
+        tracking_number: order.tracking_number,
+        status_history: order.status_history,
+        source: order.source,
+        created_at: order.created_at,
+        updated_at: order.updated_at
+      });
+    }
+  }
+
+  store.orders.unshift(order);
+
+  // Trigger admin email/push alert if configured on server
+  await sendNewOrderAdminAlert(order);
+
+  return order;
+}
+
+/**
+ * Marks an order as paid ONLY after the payment provider (Razorpay HMAC signature / webhook)
+ * confirms the transaction. Stores only the safe provider reference.
+ */
+export async function markOrderPaidByProvider(params: {
+  orderId?: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+}): Promise<StoreOrderRecord | null> {
+  const store = getMemoryStore();
+  const safeRef = `${params.razorpayOrderId} / ${params.razorpayPaymentId}`;
+  const now = new Date().toISOString();
+
+  const order = store.orders.find(
+    (o) =>
+      (params.orderId && o.id === params.orderId) ||
+      o.payment_reference === params.razorpayOrderId ||
+      o.payment_reference?.includes(params.razorpayOrderId)
+  );
+
+  if (!order) return null;
+
+  const prevStatus = order.order_status;
+  order.payment_status = "paid";
+  order.payment_reference = safeRef;
+  if (order.order_status === "new") {
+    order.order_status = "confirmed";
+    order.status_history.push({
+      from_status: prevStatus,
+      to_status: "confirmed",
+      changed_by: "payment_provider:razorpay",
+      changed_at: now,
+      note: `Payment confirmed by provider (${safeRef})`
+    });
+  }
+  order.updated_at = now;
+
+  if (isServiceRoleConfigured()) {
+    const service = createSupabaseServiceClient();
+    if (service) {
+      await service
+        .from("store_orders")
+        .update({
+          payment_status: order.payment_status,
+          payment_reference: order.payment_reference,
+          order_status: order.order_status,
+          status_history: order.status_history,
+          updated_at: now
+        })
+        .eq("id", order.id);
+    }
+  }
+
+  return order;
+}
+
 // ============================================================================
 // ADMIN REPOSITORY FUNCTIONS (Used only after server-side admin verification)
 // ============================================================================
+
+export function buildCustomerSummaries(
+  orders: StoreOrderRecord[]
+): CustomerSummaryRecord[] {
+  const map = new Map<string, CustomerSummaryRecord>();
+
+  for (const ord of orders) {
+    const key = ord.customer_email.toLowerCase() || ord.customer_phone;
+    const existing = map.get(key);
+    const isPaid = ord.payment_status === "paid";
+
+    const orderSummary = {
+      id: ord.id,
+      order_number: ord.order_number,
+      created_at: ord.created_at,
+      final_total: ord.final_total,
+      order_status: ord.order_status,
+      payment_status: ord.payment_status
+    };
+
+    if (!existing) {
+      map.set(key, {
+        customer_key: key,
+        full_name: ord.customer_name,
+        email: ord.customer_email,
+        phone: ord.customer_phone,
+        city: ord.delivery_address.city,
+        state: ord.delivery_address.state,
+        total_orders: 1,
+        paid_orders_count: isPaid ? 1 : 0,
+        total_paid_spent: isPaid ? ord.final_total : 0,
+        last_order_at: ord.created_at,
+        orders: [orderSummary]
+      });
+    } else {
+      existing.total_orders += 1;
+      if (isPaid) {
+        existing.paid_orders_count += 1;
+        existing.total_paid_spent += ord.final_total;
+      }
+      if (ord.created_at > existing.last_order_at) {
+        existing.last_order_at = ord.created_at;
+        existing.full_name = ord.customer_name;
+        existing.city = ord.delivery_address.city;
+        existing.state = ord.delivery_address.state;
+      }
+      existing.orders.push(orderSummary);
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) =>
+    b.last_order_at.localeCompare(a.last_order_at)
+  );
+}
 
 export async function getAdminDashboardData() {
   if (isServiceRoleConfigured()) {
     const service = createSupabaseServiceClient();
     if (service) {
-      const [colsRes, prodsRes, enqRes, subRes, setRes] = await Promise.all([
-        service.from("collections").select("*").order("sort_order", { ascending: true }),
-        service
-          .from("products")
-          .select("*, product_images(*)")
-          .order("sort_order", { ascending: true }),
-        service.from("enquiries").select("*").order("created_at", { ascending: false }),
-        service
-          .from("newsletter_subscribers")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        service.from("site_settings").select("*").eq("id", 1).maybeSingle()
-      ]);
+      const [colsRes, prodsRes, enqRes, subRes, setRes, ordRes, audRes] =
+        await Promise.all([
+          service.from("collections").select("*").order("sort_order", { ascending: true }),
+          service
+            .from("products")
+            .select("*, product_images(*)")
+            .order("sort_order", { ascending: true }),
+          service.from("enquiries").select("*").order("created_at", { ascending: false }),
+          service
+            .from("newsletter_subscribers")
+            .select("*")
+            .order("created_at", { ascending: false }),
+          service.from("site_settings").select("*").eq("id", 1).maybeSingle(),
+          service
+            .from("store_orders")
+            .select("*")
+            .order("created_at", { ascending: false }),
+          service
+            .from("admin_audit_logs")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(200)
+        ]);
 
       const collections = (colsRes.data as CollectionRecord[]) ?? defaultCollections;
       const collectionsMap = new Map(collections.map((c) => [c.id, c]));
       const products = ((prodsRes.data as Record<string, unknown>[]) ?? []).map((r) =>
         normalizeProductRow(r, collectionsMap)
       );
+      const orders = (ordRes.data as StoreOrderRecord[]) ?? getMemoryStore().orders;
+      const auditLogs =
+        (audRes.data as AdminAuditLogRecord[]) ?? getMemoryStore().auditLogs;
 
       return {
         settings: (setRes.data as SiteSettingsRecord) ?? defaultSiteSettings,
         collections,
-        products: products.length > 0 ? products : defaultProducts,
+        products:
+          products.length > 0
+            ? products
+            : getMemoryStore().products,
         enquiries: (enqRes.data as EnquiryRecord[]) ?? [],
-        subscribers: (subRes.data as NewsletterSubscriberRecord[]) ?? []
+        subscribers: (subRes.data as NewsletterSubscriberRecord[]) ?? [],
+        orders,
+        customers: buildCustomerSummaries(orders),
+        auditLogs
       };
     }
   }
@@ -413,11 +749,152 @@ export async function getAdminDashboardData() {
     collections: store.collections,
     products: store.products,
     enquiries: store.enquiries,
-    subscribers: store.subscribers
+    subscribers: store.subscribers,
+    orders: store.orders,
+    customers: buildCustomerSummaries(store.orders),
+    auditLogs: store.auditLogs
   };
 }
 
-export async function saveAdminProduct(product: Partial<ProductRecord> & { name: string; slug: string }) {
+export async function updateAdminOrderStatus(params: {
+  id: string;
+  order_status: OrderStatusStage;
+  payment_status?: OrderPaymentStatus;
+  courier_name?: string;
+  tracking_number?: string;
+  note?: string;
+  adminEmail: string;
+}): Promise<{
+  order: StoreOrderRecord;
+  customerNotified: boolean;
+  notificationChannel: string | null;
+}> {
+  const store = getMemoryStore();
+  const order = store.orders.find((o) => o.id === params.id);
+  if (!order) {
+    throw new Error("Order not found.");
+  }
+
+  const now = new Date().toISOString();
+  const prevStatus = order.order_status;
+  const prevPaymentStatus = order.payment_status;
+
+  order.order_status = params.order_status;
+  if (params.payment_status) {
+    order.payment_status = params.payment_status;
+  }
+  if (params.courier_name !== undefined) {
+    order.courier_name = params.courier_name || null;
+  }
+  if (params.tracking_number !== undefined) {
+    order.tracking_number = params.tracking_number || null;
+  }
+
+  order.status_history.push({
+    from_status: prevStatus,
+    to_status: params.order_status,
+    changed_by: params.adminEmail,
+    changed_at: now,
+    note:
+      params.note ||
+      (params.courier_name || params.tracking_number
+        ? `Tracking: ${[params.courier_name, params.tracking_number]
+            .filter(Boolean)
+            .join(" - ")}`
+        : null)
+  });
+  order.updated_at = now;
+
+  if (isServiceRoleConfigured()) {
+    const service = createSupabaseServiceClient();
+    if (service) {
+      await service
+        .from("store_orders")
+        .update({
+          order_status: order.order_status,
+          payment_status: order.payment_status,
+          courier_name: order.courier_name,
+          tracking_number: order.tracking_number,
+          status_history: order.status_history,
+          updated_at: now
+        })
+        .eq("id", order.id);
+    }
+  }
+
+  const isRefundAction =
+    params.order_status === "refund_requested" ||
+    params.payment_status === "refunded";
+
+  await recordAdminAuditLog({
+    action_type: isRefundAction
+      ? "order_refund_updated"
+      : "order_status_updated",
+    actor_email: params.adminEmail,
+    target_type: "order",
+    target_id: order.order_number,
+    summary: `Order ${order.order_number} status changed from "${prevStatus}" to "${params.order_status}" by ${params.adminEmail}`,
+    metadata: {
+      order_id: order.id,
+      order_number: order.order_number,
+      from_status: prevStatus,
+      to_status: params.order_status,
+      from_payment_status: prevPaymentStatus,
+      to_payment_status: order.payment_status,
+      courier_name: order.courier_name,
+      tracking_number: order.tracking_number
+    }
+  });
+
+  const notifyRes = await sendOrderStatusCustomerNotification(
+    order,
+    params.order_status
+  );
+
+  return {
+    order,
+    customerNotified: notifyRes.sent,
+    notificationChannel: notifyRes.channel
+  };
+}
+
+export async function saveAdminProduct(
+  product: Partial<ProductRecord> & { name: string; slug: string },
+  adminEmail = "admin"
+) {
+  const store = getMemoryStore();
+  const idx = store.products.findIndex(
+    (p) => p.id === product.id || p.slug === product.slug
+  );
+  const existing = idx >= 0 ? store.products[idx] : undefined;
+
+  const salePrice =
+    product.price_amount !== undefined
+      ? product.price_amount
+      : existing?.price_amount ?? null;
+  const origPrice =
+    product.original_price_amount !== undefined
+      ? product.original_price_amount
+      : existing?.original_price_amount ?? salePrice;
+
+  const savingsAmount =
+    salePrice && origPrice && origPrice > salePrice ? origPrice - salePrice : 0;
+  const discountPercent =
+    salePrice && origPrice && origPrice > salePrice
+      ? Math.round(((origPrice - salePrice) / origPrice) * 1000) / 10
+      : 0;
+  const priceDisplay =
+    product.price_display ||
+    (salePrice ? `₹${Math.round(salePrice).toLocaleString("en-IN")}` : null);
+  const savingsLabel =
+    savingsAmount > 0
+      ? `Save ₹${Math.round(savingsAmount).toLocaleString("en-IN")}`
+      : null;
+  const stockCount =
+    typeof product.stock_count === "number"
+      ? Math.max(0, Math.floor(product.stock_count))
+      : existing?.stock_count ?? 10;
+
   if (isServiceRoleConfigured()) {
     const service = createSupabaseServiceClient();
     if (service) {
@@ -429,9 +906,13 @@ export async function saveAdminProduct(product: Partial<ProductRecord> & { name:
         collection_id: product.collection_id || null,
         short_description: product.short_description || null,
         description: product.description || null,
-        price_amount: product.price_amount ?? null,
+        price_amount: salePrice,
+        original_price_amount: origPrice,
+        discount_percent: discountPercent,
+        savings_label: savingsLabel,
+        stock_count: stockCount,
         price_currency: product.price_currency || "INR",
-        price_display: product.price_display || null,
+        price_display: priceDisplay,
         availability_status: product.availability_status ?? "available",
         featured: Boolean(product.featured),
         published: Boolean(product.published),
@@ -445,13 +926,28 @@ export async function saveAdminProduct(product: Partial<ProductRecord> & { name:
         .select("*")
         .single();
       if (error) throw new Error(error.message);
+
+      await recordAdminAuditLog({
+        action_type: existing ? "product_price_or_stock_updated" : "product_created",
+        actor_email: adminEmail,
+        target_type: "product",
+        target_id: product.slug,
+        summary: existing
+          ? `Updated product "${product.name}" (Sale: ₹${salePrice ?? 0}, MRP: ₹${origPrice ?? 0}, Stock: ${stockCount})`
+          : `Created product "${product.name}" (Sale: ₹${salePrice ?? 0}, Stock: ${stockCount})`,
+        metadata: {
+          previous_price: existing?.price_amount ?? null,
+          new_price: salePrice,
+          previous_original_price: existing?.original_price_amount ?? null,
+          new_original_price: origPrice,
+          previous_stock: existing?.stock_count ?? null,
+          new_stock: stockCount
+        }
+      });
+
       return data;
     }
   }
-
-  const store = getMemoryStore();
-  const idx = store.products.findIndex((p) => p.id === product.id || p.slug === product.slug);
-  const existing = idx >= 0 ? store.products[idx] : undefined;
 
   const updated: ProductRecord = {
     id: product.id ?? existing?.id ?? crypto.randomUUID(),
@@ -461,16 +957,14 @@ export async function saveAdminProduct(product: Partial<ProductRecord> & { name:
     collection_id: product.collection_id ?? null,
     short_description: product.short_description ?? null,
     description: product.description ?? null,
-    price_amount: product.price_amount ?? existing?.price_amount ?? null,
-    original_price_amount:
-      product.original_price_amount ?? existing?.original_price_amount ?? null,
-    discount_percent:
-      product.discount_percent ?? existing?.discount_percent ?? null,
-    savings_label:
-      product.savings_label ?? existing?.savings_label ?? null,
+    price_amount: salePrice,
+    original_price_amount: origPrice,
+    discount_percent: discountPercent,
+    savings_label: savingsLabel,
     price_currency: product.price_currency ?? "INR",
-    price_display: product.price_display ?? null,
+    price_display: priceDisplay,
     availability_status: product.availability_status ?? "available",
+    stock_count: stockCount,
     featured: Boolean(product.featured),
     published: Boolean(product.published),
     sort_order: product.sort_order ?? 0,
@@ -483,25 +977,58 @@ export async function saveAdminProduct(product: Partial<ProductRecord> & { name:
   if (idx >= 0) {
     store.products[idx] = updated;
   } else {
-    store.products.push(updated);
+    store.products.unshift(updated);
   }
+
+  await recordAdminAuditLog({
+    action_type: existing ? "product_price_or_stock_updated" : "product_created",
+    actor_email: adminEmail,
+    target_type: "product",
+    target_id: updated.slug,
+    summary: existing
+      ? `Updated product "${updated.name}" (Sale: ₹${salePrice ?? 0}, MRP: ₹${origPrice ?? 0}, Stock: ${stockCount})`
+      : `Created product "${updated.name}" (Sale: ₹${salePrice ?? 0}, Stock: ${stockCount})`,
+    metadata: {
+      previous_price: existing?.price_amount ?? null,
+      new_price: salePrice,
+      previous_original_price: existing?.original_price_amount ?? null,
+      new_original_price: origPrice,
+      previous_stock: existing?.stock_count ?? null,
+      new_stock: stockCount
+    }
+  });
+
   return updated;
 }
 
-export async function deleteAdminProduct(id: string) {
+export async function deleteAdminProduct(id: string, adminEmail = "admin") {
+  const store = getMemoryStore();
+  const target = store.products.find((p) => p.id === id);
+
   if (isServiceRoleConfigured()) {
     const service = createSupabaseServiceClient();
     if (service) {
       const { error } = await service.from("products").delete().eq("id", id);
       if (error) throw new Error(error.message);
-      return;
     }
   }
-  const store = getMemoryStore();
+
   store.products = store.products.filter((p) => p.id !== id);
+
+  await recordAdminAuditLog({
+    action_type: "product_deleted",
+    actor_email: adminEmail,
+    target_type: "product",
+    target_id: target?.slug || id,
+    summary: `Deleted product "${target?.name || id}"`,
+    metadata: { product_id: id }
+  });
 }
 
-export async function saveAdminCollection(col: Partial<CollectionRecord> & { name: string; slug: string }) {
+export async function saveAdminCollection(
+  col: Partial<CollectionRecord> & { name: string; slug: string },
+  adminEmail = "admin"
+) {
   if (isServiceRoleConfigured()) {
     const service = createSupabaseServiceClient();
     if (service) {
@@ -523,6 +1050,13 @@ export async function saveAdminCollection(col: Partial<CollectionRecord> & { nam
         .select("*")
         .single();
       if (error) throw new Error(error.message);
+      await recordAdminAuditLog({
+        action_type: "collection_updated",
+        actor_email: adminEmail,
+        target_type: "collection",
+        target_id: col.slug,
+        summary: `Saved collection "${col.name}"`
+      });
       return data;
     }
   }
@@ -548,6 +1082,15 @@ export async function saveAdminCollection(col: Partial<CollectionRecord> & { nam
   } else {
     store.collections.push(updated);
   }
+
+  await recordAdminAuditLog({
+    action_type: "collection_updated",
+    actor_email: adminEmail,
+    target_type: "collection",
+    target_id: col.slug,
+    summary: `Saved collection "${col.name}"`
+  });
+
   return updated;
 }
 
@@ -596,7 +1139,10 @@ export async function updateAdminEnquiry(
   return item;
 }
 
-export async function saveAdminSiteSettings(input: Omit<SiteSettingsRecord, "id">) {
+export async function saveAdminSiteSettings(
+  input: Omit<SiteSettingsRecord, "id">,
+  adminEmail = "admin"
+) {
   if (isServiceRoleConfigured()) {
     const service = createSupabaseServiceClient();
     if (service) {
@@ -606,6 +1152,13 @@ export async function saveAdminSiteSettings(input: Omit<SiteSettingsRecord, "id"
         .select("*")
         .single();
       if (error) throw new Error(error.message);
+      await recordAdminAuditLog({
+        action_type: "settings_updated",
+        actor_email: adminEmail,
+        target_type: "settings",
+        target_id: "site_settings",
+        summary: `Updated store settings by ${adminEmail}`
+      });
       return data;
     }
   }
@@ -615,6 +1168,13 @@ export async function saveAdminSiteSettings(input: Omit<SiteSettingsRecord, "id"
     ...input,
     updated_at: new Date().toISOString()
   };
+  await recordAdminAuditLog({
+    action_type: "settings_updated",
+    actor_email: adminEmail,
+    target_type: "settings",
+    target_id: "site_settings",
+    summary: `Updated store settings by ${adminEmail}`
+  });
   return store.settings;
 }
 

@@ -9,6 +9,15 @@ import { resetRateLimitsForTest } from "@/lib/rate-limit";
 import { POST as postEnquiry } from "@/app/api/enquiries/route";
 import { POST as postNewsletter } from "@/app/api/newsletter/route";
 import { buildMobileCatalog } from "@/lib/mobile-catalog";
+import {
+  createStoreOrder,
+  getAdminDashboardData,
+  markOrderPaidByProvider,
+  updateAdminOrderStatus
+} from "@/lib/repository";
+import { GET as getAdminCatalog, POST as postAdminCatalog } from "@/app/api/admin/catalog/route";
+import { GET as getMobileOrders } from "@/app/api/mobile/orders/route";
+import { NextRequest } from "next/server";
 
 describe("STEPUP STORIES Zod Validation & Input Sanitization", () => {
   it("strips HTML/script tags from user input", () => {
@@ -164,5 +173,94 @@ describe("STEPUP STORIES Form API Routes (Enquiry & Newsletter)", () => {
       expect(prod.brand_verified).toBe(false);
       expect(prod.name).toBe(prod.generic_name);
     }
+  });
+
+  it("enforces server-side authorization on /api/admin/catalog and /api/mobile/orders", async () => {
+    const adminGetRes = await getAdminCatalog();
+    expect(adminGetRes.status).toBe(401);
+
+    const adminPostRes = await postAdminCatalog(
+      new Request("http://localhost:3000/api/admin/catalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_order_status", payload: {} })
+      })
+    );
+    expect(adminPostRes.status).toBe(401);
+
+    const ordersGetRes = await getMobileOrders(
+      new NextRequest("http://localhost:3000/api/mobile/orders")
+    );
+    expect(ordersGetRes.status).toBe(401);
+  });
+
+  it("creates orders with pending payment status, marks paid only on provider confirmation, and records admin status changes & audit logs", async () => {
+    const order = await createStoreOrder({
+      customer_name: "Rohan Mehta",
+      customer_email: "rohan.mehta@example.com",
+      customer_phone: "9876543210",
+      delivery_address: {
+        address_line1: "12 Marine Drive",
+        address_line2: "Nariman Point",
+        city: "Mumbai",
+        state: "Maharashtra",
+        pincode: "400021"
+      },
+      items: [
+        {
+          product_id: "22222222-2222-4222-8222-222222222223",
+          slug: "green-dial-fluted-bezel-date-watch",
+          name: "Green Dial Fluted-Bezel Date Watch",
+          image_url: "/images/products/rolex-green-fluted-date-1.jpg",
+          unit_price: 1499,
+          original_unit_price: 1699,
+          quantity: 1
+        }
+      ],
+      delivery_fee: 0,
+      payment_method: "razorpay",
+      payment_reference: "order_test_991122",
+      source: "mobile_app"
+    });
+
+    // Never marked paid before provider confirmation
+    expect(order.payment_status).toBe("pending");
+    expect(order.order_status).toBe("new");
+    expect(order.item_subtotal).toBe(1699);
+    expect(order.discount_total).toBe(200);
+    expect(order.final_total).toBe(1499);
+
+    // Provider confirmation marks it paid with safe reference
+    const confirmed = await markOrderPaidByProvider({
+      orderId: order.id,
+      razorpayOrderId: "order_test_991122",
+      razorpayPaymentId: "pay_test_778899"
+    });
+    expect(confirmed?.payment_status).toBe("paid");
+    expect(confirmed?.payment_reference).toContain("pay_test_778899");
+    expect(confirmed?.order_status).toBe("confirmed");
+
+    // Admin updates stage to shipped with courier & tracking number
+    const updated = await updateAdminOrderStatus({
+      id: order.id,
+      order_status: "shipped",
+      courier_name: "BlueDart Priority",
+      tracking_number: "BD123456789IN",
+      note: "Handed over to insured courier",
+      adminEmail: "admin@stepupstories.in"
+    });
+
+    expect(updated.order.order_status).toBe("shipped");
+    expect(updated.order.courier_name).toBe("BlueDart Priority");
+    expect(updated.order.tracking_number).toBe("BD123456789IN");
+
+    const latestHistory =
+      updated.order.status_history[updated.order.status_history.length - 1];
+    expect(latestHistory?.to_status).toBe("shipped");
+    expect(latestHistory?.changed_by).toBe("admin@stepupstories.in");
+
+    const dashboardData = await getAdminDashboardData();
+    expect(dashboardData.customers.length).toBeGreaterThanOrEqual(1);
+    expect(dashboardData.auditLogs.length).toBeGreaterThanOrEqual(1);
   });
 });
