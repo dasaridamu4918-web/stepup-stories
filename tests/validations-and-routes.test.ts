@@ -22,7 +22,7 @@ import { GET as getMobileOrders } from "@/app/api/mobile/orders/route";
 import { GET as getWebsiteOrders, POST as postWebsiteOrder } from "@/app/api/orders/route";
 import { POST as postRazorpayCreateOrder } from "@/app/api/payments/razorpay/create-order/route";
 import { POST as postRazorpayVerify } from "@/app/api/payments/razorpay/verify/route";
-import { POST as postRazorpayWebhook } from "@/app/api/payments/razorpay/webhook/route";
+import { POST as postRazorpayWebhook } from "@/app/api/razorpay/webhook/route";
 import { NextRequest } from "next/server";
 
 describe("STEPUP STORIES Zod Validation & Input Sanitization", () => {
@@ -495,7 +495,7 @@ describe("STEPUP STORIES Form API Routes (Enquiry & Newsletter)", () => {
 
       // First webhook delivery marks order paid and confirmed
       const firstWebhookRes = await postRazorpayWebhook(
-        new NextRequest("http://localhost:3000/api/payments/razorpay/webhook", {
+        new NextRequest("http://localhost:3000/api/razorpay/webhook", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -509,20 +509,36 @@ describe("STEPUP STORIES Form API Routes (Enquiry & Newsletter)", () => {
       const firstWebhookJson = (await firstWebhookRes.json()) as {
         ok: boolean;
         duplicate: boolean;
+        razorpay_payment_id: string;
+        razorpay_order_id: string;
+        customer_name: string;
+        customer_email: string;
+        customer_phone: string;
+        product_name: string;
+        amount: number;
         payment_status: string;
         order_status: string;
+        created_at: string;
       };
       expect(firstWebhookJson.ok).toBe(true);
       expect(firstWebhookJson.duplicate).toBe(false);
+      expect(firstWebhookJson.razorpay_payment_id).toBe("pay_rzp_webhook_002");
+      expect(firstWebhookJson.razorpay_order_id).toBe("order_rzp_webhook_002");
+      expect(firstWebhookJson.customer_name).toBe("Ananya Iyer");
+      expect(firstWebhookJson.customer_email).toBe("ananya.iyer@example.com");
+      expect(firstWebhookJson.customer_phone).toBe("9765432109");
+      expect(firstWebhookJson.product_name).toContain("Black Dial Gold-Tone Watch");
+      expect(firstWebhookJson.amount).toBe(2499);
       expect(firstWebhookJson.payment_status).toBe("paid");
       expect(firstWebhookJson.order_status).toBe("confirmed");
+      expect(firstWebhookJson.created_at).toBeTruthy();
 
       const historyLengthAfterFirst =
         (await getStoreOrderById(webhookOrder.id))?.status_history.length ?? 0;
 
       // Second (duplicate) webhook delivery is handled safely without duplicating status history
       const duplicateWebhookRes = await postRazorpayWebhook(
-        new NextRequest("http://localhost:3000/api/payments/razorpay/webhook", {
+        new NextRequest("http://localhost:3000/api/razorpay/webhook", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -542,6 +558,128 @@ describe("STEPUP STORIES Form API Routes (Enquiry & Newsletter)", () => {
       expect(
         (await getStoreOrderById(webhookOrder.id))?.status_history.length
       ).toBe(historyLengthAfterFirst);
+
+      // 5. Rejects invalid webhook signature with clear error and HTTP 400
+      const invalidWebhookSigRes = await postRazorpayWebhook(
+        new NextRequest("http://localhost:3000/api/razorpay/webhook", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-razorpay-signature": "invalid_signature_hex_value",
+            "x-razorpay-event-id": "evt_invalid_sig_003"
+          },
+          body: rawWebhookPayload
+        })
+      );
+      expect(invalidWebhookSigRes.status).toBe(400);
+      const invalidWebhookJson = (await invalidWebhookSigRes.json()) as {
+        ok: boolean;
+        error: string;
+      };
+      expect(invalidWebhookJson.ok).toBe(false);
+      expect(invalidWebhookJson.error).toContain("Invalid Razorpay webhook signature");
+
+      // 6. Out-of-order `payment.failed` arriving AFTER `payment.captured` does NOT downgrade a paid order
+      const outOfOrderFailedPayload = JSON.stringify({
+        event: "payment.failed",
+        payload: {
+          payment: {
+            entity: {
+              id: "pay_rzp_failed_attempt_001",
+              order_id: "order_rzp_webhook_002",
+              amount: 249900,
+              currency: "INR",
+              status: "failed",
+              error_description: "First card attempt timed out"
+            }
+          }
+        }
+      });
+      const outOfOrderFailedSig = crypto
+        .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
+        .update(outOfOrderFailedPayload)
+        .digest("hex");
+
+      const outOfOrderFailedRes = await postRazorpayWebhook(
+        new NextRequest("http://localhost:3000/api/razorpay/webhook", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-razorpay-signature": outOfOrderFailedSig,
+            "x-razorpay-event-id": "evt_out_of_order_failed_004"
+          },
+          body: outOfOrderFailedPayload
+        })
+      );
+      expect(outOfOrderFailedRes.status).toBe(200);
+      const outOfOrderFailedJson = (await outOfOrderFailedRes.json()) as {
+        ok: boolean;
+        out_of_order: boolean;
+        payment_status: string;
+      };
+      expect(outOfOrderFailedJson.ok).toBe(true);
+      expect(outOfOrderFailedJson.out_of_order).toBe(true);
+      expect(outOfOrderFailedJson.payment_status).toBe("paid");
+
+      // 7. `refund.processed` marks order as `refunded`, and a delayed `payment.captured` arriving out of order does NOT revert `refunded` to `paid`
+      const refundPayload = JSON.stringify({
+        event: "refund.processed",
+        payload: {
+          refund: {
+            entity: {
+              id: "rfnd_rzp_002",
+              payment_id: "pay_rzp_webhook_002",
+              order_id: "order_rzp_webhook_002",
+              amount: 249900,
+              status: "processed"
+            }
+          }
+        }
+      });
+      const refundSig = crypto
+        .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
+        .update(refundPayload)
+        .digest("hex");
+
+      const refundRes = await postRazorpayWebhook(
+        new NextRequest("http://localhost:3000/api/razorpay/webhook", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-razorpay-signature": refundSig,
+            "x-razorpay-event-id": "evt_refund_processed_005"
+          },
+          body: refundPayload
+        })
+      );
+      expect(refundRes.status).toBe(200);
+      const refundJson = (await refundRes.json()) as {
+        ok: boolean;
+        payment_status: string;
+      };
+      expect(refundJson.ok).toBe(true);
+      expect(refundJson.payment_status).toBe("refunded");
+
+      const lateCaptureRes = await postRazorpayWebhook(
+        new NextRequest("http://localhost:3000/api/razorpay/webhook", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-razorpay-signature": validWebhookSig,
+            "x-razorpay-event-id": "evt_late_capture_after_refund_006"
+          },
+          body: rawWebhookPayload
+        })
+      );
+      expect(lateCaptureRes.status).toBe(200);
+      const lateCaptureJson = (await lateCaptureRes.json()) as {
+        ok: boolean;
+        out_of_order: boolean;
+        payment_status: string;
+      };
+      expect(lateCaptureJson.ok).toBe(true);
+      expect(lateCaptureJson.out_of_order).toBe(true);
+      expect(lateCaptureJson.payment_status).toBe("refunded");
     } finally {
       if (prevKeySecret === undefined) delete process.env.RAZORPAY_KEY_SECRET;
       else process.env.RAZORPAY_KEY_SECRET = prevKeySecret;

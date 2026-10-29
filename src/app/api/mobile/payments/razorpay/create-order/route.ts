@@ -130,8 +130,20 @@ export async function POST(request: NextRequest) {
           order_number: existingOrder?.order_number || "",
           customer_name:
             body.customer_name || existingOrder?.customer_name || "",
+          customer_email: existingOrder?.customer_email || "",
           customer_phone:
-            body.customer_phone || existingOrder?.customer_phone || ""
+            body.customer_phone || existingOrder?.customer_phone || "",
+          product_name:
+            existingOrder?.product_name ||
+            existingOrder?.items.map((i) => i.name).join(", ") ||
+            "",
+          product_slug: existingOrder?.items[0]?.slug || body.slug || "",
+          product_id: existingOrder?.items[0]?.product_id || body.product_id || "",
+          quantity: String(
+            existingOrder?.items.reduce((sum, i) => sum + i.quantity, 0) ||
+              body.quantity ||
+              1
+          )
         }
       })
     });

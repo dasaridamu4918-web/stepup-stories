@@ -561,6 +561,47 @@ export async function createStoreOrder(
     decrementStock: true
   });
 
+  const productNameSummary = normalizedItems
+    .map((i) => (i.quantity > 1 ? `${i.name} (x${i.quantity})` : i.name))
+    .join(", ");
+
+  // Handle out-of-order webhook: if a verified Razorpay webhook already created an order
+  // for this `payment_reference` (razorpay_order_id) before the browser POST /api/orders arrived,
+  // enrich that existing order while preserving its verified payment_status & razorpay_payment_id!
+  if (input.payment_reference) {
+    const existingWebhookOrder = store.orders.find(
+      (o) =>
+        o.razorpay_order_id === input.payment_reference ||
+        o.payment_reference === input.payment_reference ||
+        o.payment_reference?.startsWith(`${input.payment_reference} /`)
+    );
+    if (existingWebhookOrder) {
+      existingWebhookOrder.customer_name = input.customer_name;
+      existingWebhookOrder.customer_email = input.customer_email;
+      existingWebhookOrder.customer_phone = input.customer_phone;
+      existingWebhookOrder.delivery_address = {
+        full_name: input.customer_name,
+        email: input.customer_email,
+        phone: input.customer_phone,
+        address_line1: input.delivery_address.address_line1,
+        address_line2: input.delivery_address.address_line2 || null,
+        landmark: input.delivery_address.landmark || null,
+        city: input.delivery_address.city,
+        state: input.delivery_address.state,
+        pincode: input.delivery_address.pincode
+      };
+      existingWebhookOrder.items = normalizedItems;
+      existingWebhookOrder.product_name = productNameSummary;
+      existingWebhookOrder.item_subtotal = itemSubtotal;
+      existingWebhookOrder.discount_total = discountTotal;
+      existingWebhookOrder.delivery_fee = deliveryFee;
+      existingWebhookOrder.final_total = finalTotal;
+      existingWebhookOrder.amount = finalTotal;
+      existingWebhookOrder.updated_at = now;
+      return existingWebhookOrder;
+    }
+  }
+
   const order: StoreOrderRecord = {
     id: crypto.randomUUID(),
     order_number: orderNumber,
@@ -580,15 +621,23 @@ export async function createStoreOrder(
       pincode: input.delivery_address.pincode
     },
     items: normalizedItems,
+    product_name: productNameSummary,
     item_subtotal: itemSubtotal,
     discount_total: discountTotal,
     delivery_fee: deliveryFee,
     final_total: finalTotal,
+    amount: finalTotal,
     currency: "INR",
     payment_method: input.payment_method,
     // Strictly 'pending' until confirmed by payment provider verification
     payment_status: "pending",
     payment_reference: input.payment_reference || null,
+    razorpay_order_id:
+      input.payment_method === "razorpay" && input.payment_reference
+        ? input.payment_reference
+        : null,
+    razorpay_payment_id: null,
+    razorpay_refund_id: null,
     order_status: "new",
     courier_name: null,
     tracking_number: null,
@@ -686,10 +735,12 @@ async function findOrderForPaymentReference(params: {
         (params.orderId &&
           (o.id === params.orderId || o.order_number === params.orderId)) ||
         (params.razorpayOrderId &&
-          (o.payment_reference === params.razorpayOrderId ||
+          (o.razorpay_order_id === params.razorpayOrderId ||
+            o.payment_reference === params.razorpayOrderId ||
             o.payment_reference?.includes(params.razorpayOrderId))) ||
         (params.razorpayPaymentId &&
-          o.payment_reference?.includes(params.razorpayPaymentId))
+          (o.razorpay_payment_id === params.razorpayPaymentId ||
+            o.payment_reference?.includes(params.razorpayPaymentId)))
     ) ?? null;
 
   const localMatch = matchInList(store.orders);
@@ -724,7 +775,10 @@ export async function attachRazorpayOrderToStoreOrder(
   if (!order) return null;
 
   const now = new Date().toISOString();
-  order.payment_reference = razorpayOrderId;
+  order.razorpay_order_id = razorpayOrderId;
+  order.payment_reference = order.razorpay_payment_id
+    ? `${razorpayOrderId} / ${order.razorpay_payment_id}`
+    : razorpayOrderId;
   order.updated_at = now;
 
   if (isServiceRoleConfigured()) {
@@ -733,7 +787,7 @@ export async function attachRazorpayOrderToStoreOrder(
       await service
         .from("store_orders")
         .update({
-          payment_reference: razorpayOrderId,
+          payment_reference: order.payment_reference,
           updated_at: now
         })
         .eq("id", order.id);
@@ -746,13 +800,17 @@ export async function attachRazorpayOrderToStoreOrder(
 /**
  * Marks an order as paid ONLY after the payment provider (Razorpay HMAC signature / webhook)
  * confirms the transaction. Stores only the safe provider reference.
- * Idempotent: safe to call from both signature verification and webhook delivery.
+ * Idempotent & out-of-order safe: safe to call from both signature verification and webhook delivery.
  */
 export async function markOrderPaidByProvider(params: {
   orderId?: string;
   razorpayOrderId: string;
   razorpayPaymentId: string;
   verifiedSource?: "signature" | "webhook";
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  productName?: string;
 }): Promise<StoreOrderRecord | null> {
   const safeRef = `${params.razorpayOrderId} / ${params.razorpayPaymentId}`;
   const now = new Date().toISOString();
@@ -765,17 +823,40 @@ export async function markOrderPaidByProvider(params: {
 
   if (!order) return null;
 
+  order.razorpay_order_id = params.razorpayOrderId;
+  order.razorpay_payment_id = params.razorpayPaymentId;
+  order.payment_reference = safeRef;
+  if (!order.product_name && order.items.length > 0) {
+    order.product_name = order.items
+      .map((i) => (i.quantity > 1 ? `${i.name} (x${i.quantity})` : i.name))
+      .join(", ");
+  } else if (!order.product_name && params.productName) {
+    order.product_name = params.productName;
+  }
+  order.amount = order.final_total;
+
+  // Out-of-order guard: if a refund event was already processed before this payment event arrived,
+  // do NOT downgrade `refunded` back to `paid`!
+  if (order.payment_status === "refunded") {
+    return order;
+  }
+
   // Idempotent guard: if already paid with this exact payment ID, do not duplicate history
   if (
     order.payment_status === "paid" &&
-    order.payment_reference?.includes(params.razorpayPaymentId)
+    (order.razorpay_payment_id === params.razorpayPaymentId ||
+      order.payment_reference?.includes(params.razorpayPaymentId))
   ) {
-    return order;
+    const alreadyLogged = order.status_history.some((h) =>
+      h.note?.includes(params.razorpayPaymentId)
+    );
+    if (alreadyLogged) {
+      return order;
+    }
   }
 
   const prevStatus = order.order_status;
   order.payment_status = "paid";
-  order.payment_reference = safeRef;
   const actor =
     params.verifiedSource === "webhook"
       ? "webhook:razorpay"
@@ -825,7 +906,7 @@ export async function markOrderPaymentFailedByProvider(params: {
   razorpayOrderId: string;
   razorpayPaymentId?: string;
   reason?: string | null;
-}): Promise<StoreOrderRecord | null> {
+}): Promise<{ order: StoreOrderRecord | null; outOfOrder: boolean }> {
   const safeRef = params.razorpayPaymentId
     ? `${params.razorpayOrderId} / ${params.razorpayPaymentId}`
     : params.razorpayOrderId;
@@ -837,11 +918,11 @@ export async function markOrderPaymentFailedByProvider(params: {
     razorpayPaymentId: params.razorpayPaymentId
   });
 
-  if (!order) return null;
+  if (!order) return { order: null, outOfOrder: false };
 
-  // Never downgrade an already-paid order if an earlier failed attempt webhook arrives late
-  if (order.payment_status === "paid") {
-    return order;
+  // Out-of-order guard: never downgrade an already-paid or refunded order if an earlier failed attempt webhook arrives late
+  if (order.payment_status === "paid" || order.payment_status === "refunded") {
+    return { order, outOfOrder: true };
   }
 
   // Idempotent guard if already marked failed with this reference
@@ -849,9 +930,13 @@ export async function markOrderPaymentFailedByProvider(params: {
     order.payment_status === "failed" &&
     order.payment_reference === safeRef
   ) {
-    return order;
+    return { order, outOfOrder: false };
   }
 
+  order.razorpay_order_id = params.razorpayOrderId;
+  if (params.razorpayPaymentId) {
+    order.razorpay_payment_id = params.razorpayPaymentId;
+  }
   order.payment_status = "failed";
   order.payment_reference = safeRef;
   order.status_history.push({
@@ -878,12 +963,203 @@ export async function markOrderPaymentFailedByProvider(params: {
     }
   }
 
+  return { order, outOfOrder: false };
+}
+
+/**
+ * Helper to create a StoreOrderRecord directly from a verified Razorpay webhook
+ * when an event arrives out-of-order (before a local order record exists) or from
+ * a standalone Razorpay checkout.
+ */
+async function createOrderFromVerifiedWebhook(params: {
+  razorpayOrderId: string;
+  razorpayPaymentId?: string;
+  razorpayRefundId?: string;
+  amountPaise?: number;
+  paymentStatus: OrderPaymentStatus;
+  orderStatus: OrderStatusStage;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  productName?: string;
+  productSlug?: string;
+  productId?: string;
+  quantity?: number;
+  createdAtUnix?: number;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  historyNote: string;
+}): Promise<StoreOrderRecord> {
+  const store = getMemoryStore();
+  const publishedProducts = await getPublishedProducts();
+  const createdIso =
+    typeof params.createdAtUnix === "number" && params.createdAtUnix > 0
+      ? new Date(params.createdAtUnix * 1000).toISOString()
+      : new Date().toISOString();
+
+  const matchedProduct =
+    publishedProducts.find(
+      (p) =>
+        (params.productId && p.id === params.productId) ||
+        (params.productSlug && p.slug === params.productSlug) ||
+        (params.productName &&
+          p.name.toLowerCase() === params.productName.toLowerCase())
+    ) ??
+    store.products.find(
+      (p) =>
+        (params.productId && p.id === params.productId) ||
+        (params.productSlug && p.slug === params.productSlug) ||
+        (params.productName &&
+          p.name.toLowerCase() === params.productName.toLowerCase())
+    ) ??
+    null;
+
+  const qty = Math.max(1, Math.floor(Number(params.quantity) || 1));
+  const amountInr =
+    typeof params.amountPaise === "number" && params.amountPaise > 0
+      ? Math.round(params.amountPaise) / 100
+      : matchedProduct?.price_amount
+        ? matchedProduct.price_amount * qty
+        : 0;
+
+  const unitPrice =
+    qty > 0 && amountInr > 0
+      ? amountInr / qty
+      : matchedProduct?.price_amount ?? 0;
+  const origUnitPrice =
+    matchedProduct?.original_price_amount &&
+    matchedProduct.original_price_amount >= unitPrice
+      ? matchedProduct.original_price_amount
+      : unitPrice;
+
+  const resolvedProductName =
+    matchedProduct?.name ||
+    params.productName ||
+    "STEPUP STORIES Timepiece";
+
+  const orderItem: StoreOrderItem = {
+    product_id: matchedProduct?.id || params.productId || "razorpay-direct-item",
+    slug: matchedProduct?.slug || params.productSlug || "timepiece",
+    name: resolvedProductName,
+    collection_name: matchedProduct?.collection?.name ?? null,
+    selected_options: null,
+    quantity: qty,
+    unit_price: unitPrice,
+    original_unit_price: origUnitPrice,
+    line_total: amountInr,
+    image_url: matchedProduct?.images[0]?.url ?? null
+  };
+
+  const itemSubtotal = origUnitPrice * qty;
+  const discountTotal = Math.max(0, itemSubtotal - amountInr);
+  const safeRef = params.razorpayPaymentId
+    ? `${params.razorpayOrderId} / ${params.razorpayPaymentId}`
+    : params.razorpayOrderId;
+
+  const cleanPhone = (params.customerPhone || "")
+    .replace(/\D/g, "")
+    .slice(-10) || "9000000000";
+  const customerName = params.customerName?.trim() || "Valued Collector";
+  const customerEmail =
+    params.customerEmail?.trim().toLowerCase() || "collector@stepupstories.in";
+
+  const orderNumber = `SUS-${Date.now().toString().slice(-6)}-${Math.random()
+    .toString(36)
+    .slice(2, 4)
+    .toUpperCase()}`;
+
+  const order: StoreOrderRecord = {
+    id: crypto.randomUUID(),
+    order_number: orderNumber,
+    user_id: null,
+    customer_name: customerName,
+    customer_email: customerEmail,
+    customer_phone: cleanPhone,
+    delivery_address: {
+      full_name: customerName,
+      email: customerEmail,
+      phone: cleanPhone,
+      address_line1: params.addressLine1 || "Razorpay Express Checkout",
+      address_line2: null,
+      landmark: null,
+      city: params.city || "Mumbai",
+      state: params.state || "Maharashtra",
+      pincode: params.pincode || "400001"
+    },
+    items: [orderItem],
+    product_name:
+      qty > 1 ? `${resolvedProductName} (x${qty})` : resolvedProductName,
+    item_subtotal: itemSubtotal,
+    discount_total: discountTotal,
+    delivery_fee: 0,
+    final_total: amountInr,
+    amount: amountInr,
+    currency: "INR",
+    payment_method: "razorpay",
+    payment_status: params.paymentStatus,
+    payment_reference: safeRef,
+    razorpay_order_id: params.razorpayOrderId,
+    razorpay_payment_id: params.razorpayPaymentId || null,
+    razorpay_refund_id: params.razorpayRefundId || null,
+    order_status: params.orderStatus,
+    courier_name: null,
+    tracking_number: null,
+    status_history: [
+      {
+        from_status: null,
+        to_status: params.orderStatus,
+        changed_by: "webhook:razorpay",
+        changed_at: createdIso,
+        note: params.historyNote
+      }
+    ],
+    source: "website",
+    created_at: createdIso,
+    updated_at: createdIso
+  };
+
+  if (isServiceRoleConfigured()) {
+    const service = createSupabaseServiceClient();
+    if (service) {
+      await service.from("store_orders").insert({
+        id: order.id,
+        order_number: order.order_number,
+        user_id: order.user_id,
+        customer_name: order.customer_name,
+        customer_email: order.customer_email,
+        customer_phone: order.customer_phone,
+        delivery_address: order.delivery_address,
+        items: order.items,
+        item_subtotal: order.item_subtotal,
+        discount_total: order.discount_total,
+        delivery_fee: order.delivery_fee,
+        final_total: order.final_total,
+        currency: order.currency,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        payment_reference: order.payment_reference,
+        order_status: order.order_status,
+        courier_name: order.courier_name,
+        tracking_number: order.tracking_number,
+        status_history: order.status_history,
+        source: order.source,
+        created_at: order.created_at,
+        updated_at: order.updated_at
+      });
+    }
+  }
+
+  store.orders.unshift(order);
+  await sendNewOrderAdminAlert(order);
   return order;
 }
 
 /**
- * Processes a verified Razorpay webhook event idempotently.
- * Handles duplicate webhook deliveries safely via eventId + order state checks.
+ * Processes a verified Razorpay webhook event idempotently and handles
+ * successful payments, failed payments, refunds, duplicate webhook events,
+ * and events delivered out of order.
  */
 export async function processRazorpayWebhookEvent(params: {
   eventId: string;
@@ -894,9 +1170,22 @@ export async function processRazorpayWebhookEvent(params: {
   razorpayRefundId?: string;
   amountPaise?: number;
   errorDescription?: string | null;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  productName?: string;
+  productSlug?: string;
+  productId?: string;
+  quantity?: number;
+  createdAtUnix?: number;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
 }): Promise<{
   handled: boolean;
   duplicate: boolean;
+  outOfOrder?: boolean;
   order: StoreOrderRecord | null;
   reason?: string;
 }> {
@@ -905,6 +1194,7 @@ export async function processRazorpayWebhookEvent(params: {
     params.eventId ||
     `${params.eventType}:${params.razorpayOrderId || ""}:${params.razorpayPaymentId || ""}:${params.razorpayRefundId || ""}`;
 
+  // 1. Duplicate webhook event check by eventId / composite key
   if (dedupeKey && store.processedWebhookEventIds.includes(dedupeKey)) {
     const existingOrder = await findOrderForPaymentReference({
       orderId: params.storeOrderId,
@@ -918,6 +1208,7 @@ export async function processRazorpayWebhookEvent(params: {
     };
   }
 
+  // 2. Successful payment events: payment.captured / order.paid
   if (
     params.eventType === "payment.captured" ||
     params.eventType === "order.paid"
@@ -937,12 +1228,34 @@ export async function processRazorpayWebhookEvent(params: {
       razorpayPaymentId: params.razorpayPaymentId
     });
 
+    // If the webhook arrived before a local order record existed (out-of-order or direct payment),
+    // create and save the paid order record with all required fields so the admin dashboard updates automatically.
     if (!targetOrder) {
+      const createdPaidOrder = await createOrderFromVerifiedWebhook({
+        razorpayOrderId: params.razorpayOrderId,
+        razorpayPaymentId: params.razorpayPaymentId,
+        amountPaise: params.amountPaise,
+        paymentStatus: "paid",
+        orderStatus: "confirmed",
+        customerName: params.customerName,
+        customerEmail: params.customerEmail,
+        customerPhone: params.customerPhone,
+        productName: params.productName,
+        productSlug: params.productSlug,
+        productId: params.productId,
+        quantity: params.quantity,
+        createdAtUnix: params.createdAtUnix,
+        addressLine1: params.addressLine1,
+        city: params.city,
+        state: params.state,
+        pincode: params.pincode,
+        historyNote: `Paid order recorded via verified Razorpay webhook (${params.razorpayOrderId} / ${params.razorpayPaymentId})`
+      });
+      if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
       return {
-        handled: false,
+        handled: true,
         duplicate: false,
-        order: null,
-        reason: "Matching order not found."
+        order: createdPaidOrder
       };
     }
 
@@ -951,6 +1264,7 @@ export async function processRazorpayWebhookEvent(params: {
     if (
       typeof params.amountPaise === "number" &&
       params.amountPaise > 0 &&
+      expectedPaise > 0 &&
       params.amountPaise !== expectedPaise
     ) {
       return {
@@ -961,11 +1275,28 @@ export async function processRazorpayWebhookEvent(params: {
       };
     }
 
-    // Check if already paid with this payment ID
+    // Out-of-order check: if a refund was already processed before `payment.captured` arrived,
+    // keep `refunded` status and attach the Razorpay IDs without downgrading to `paid`.
+    if (targetOrder.payment_status === "refunded") {
+      targetOrder.razorpay_order_id = params.razorpayOrderId;
+      targetOrder.razorpay_payment_id = params.razorpayPaymentId;
+      if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
+      return {
+        handled: true,
+        duplicate: false,
+        outOfOrder: true,
+        order: targetOrder
+      };
+    }
+
+    // Duplicate check by order state: if already paid with this payment ID
     if (
       targetOrder.payment_status === "paid" &&
-      targetOrder.payment_reference?.includes(params.razorpayPaymentId)
+      (targetOrder.razorpay_payment_id === params.razorpayPaymentId ||
+        targetOrder.payment_reference?.includes(params.razorpayPaymentId))
     ) {
+      targetOrder.razorpay_order_id = params.razorpayOrderId;
+      targetOrder.razorpay_payment_id = params.razorpayPaymentId;
       if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
       return {
         handled: true,
@@ -974,11 +1305,26 @@ export async function processRazorpayWebhookEvent(params: {
       };
     }
 
+    // Backfill customer/product fields if provided in webhook notes
+    if (params.customerName && !targetOrder.customer_name) {
+      targetOrder.customer_name = params.customerName;
+    }
+    if (params.customerEmail && !targetOrder.customer_email) {
+      targetOrder.customer_email = params.customerEmail;
+    }
+    if (params.customerPhone && !targetOrder.customer_phone) {
+      targetOrder.customer_phone = params.customerPhone;
+    }
+
     const updated = await markOrderPaidByProvider({
       orderId: targetOrder.id,
       razorpayOrderId: params.razorpayOrderId,
       razorpayPaymentId: params.razorpayPaymentId,
-      verifiedSource: "webhook"
+      verifiedSource: "webhook",
+      customerName: params.customerName,
+      customerEmail: params.customerEmail,
+      customerPhone: params.customerPhone,
+      productName: params.productName
     });
 
     if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
@@ -989,6 +1335,52 @@ export async function processRazorpayWebhookEvent(params: {
     };
   }
 
+  // 3. Payment authorized (may arrive before or out-of-order after payment.captured)
+  if (params.eventType === "payment.authorized") {
+    const targetOrder = await findOrderForPaymentReference({
+      orderId: params.storeOrderId,
+      razorpayOrderId: params.razorpayOrderId,
+      razorpayPaymentId: params.razorpayPaymentId
+    });
+
+    if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
+
+    if (!targetOrder) {
+      return {
+        handled: true,
+        duplicate: false,
+        order: null,
+        reason: "Authorized event recorded (awaiting capture)."
+      };
+    }
+
+    // If payment.captured or refund already arrived before payment.authorized, ignore out-of-order
+    if (
+      targetOrder.payment_status === "paid" ||
+      targetOrder.payment_status === "refunded"
+    ) {
+      return {
+        handled: true,
+        duplicate: false,
+        outOfOrder: true,
+        order: targetOrder
+      };
+    }
+
+    if (params.razorpayOrderId) {
+      targetOrder.razorpay_order_id = params.razorpayOrderId;
+    }
+    if (params.razorpayPaymentId) {
+      targetOrder.razorpay_payment_id = params.razorpayPaymentId;
+    }
+    return {
+      handled: true,
+      duplicate: false,
+      order: targetOrder
+    };
+  }
+
+  // 4. Failed payment event: payment.failed
   if (params.eventType === "payment.failed") {
     if (!params.razorpayOrderId) {
       return {
@@ -999,8 +1391,39 @@ export async function processRazorpayWebhookEvent(params: {
       };
     }
 
-    const updated = await markOrderPaymentFailedByProvider({
+    const existingOrder = await findOrderForPaymentReference({
       orderId: params.storeOrderId,
+      razorpayOrderId: params.razorpayOrderId,
+      razorpayPaymentId: params.razorpayPaymentId
+    });
+
+    if (!existingOrder) {
+      const createdFailedOrder = await createOrderFromVerifiedWebhook({
+        razorpayOrderId: params.razorpayOrderId,
+        razorpayPaymentId: params.razorpayPaymentId,
+        amountPaise: params.amountPaise,
+        paymentStatus: "failed",
+        orderStatus: "new",
+        customerName: params.customerName,
+        customerEmail: params.customerEmail,
+        customerPhone: params.customerPhone,
+        productName: params.productName,
+        productSlug: params.productSlug,
+        productId: params.productId,
+        quantity: params.quantity,
+        createdAtUnix: params.createdAtUnix,
+        historyNote: `Payment failed (${params.razorpayOrderId}${params.razorpayPaymentId ? ` / ${params.razorpayPaymentId}` : ""})${params.errorDescription ? `: ${params.errorDescription}` : ""}`
+      });
+      if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
+      return {
+        handled: true,
+        duplicate: false,
+        order: createdFailedOrder
+      };
+    }
+
+    const { order: updated, outOfOrder } = await markOrderPaymentFailedByProvider({
+      orderId: existingOrder.id,
       razorpayOrderId: params.razorpayOrderId,
       razorpayPaymentId: params.razorpayPaymentId,
       reason: params.errorDescription
@@ -1010,19 +1433,51 @@ export async function processRazorpayWebhookEvent(params: {
     return {
       handled: Boolean(updated),
       duplicate: false,
+      outOfOrder,
       order: updated
     };
   }
 
+  // 5. Refund events: refund.processed / refund.created / payment.refunded
   if (
     params.eventType === "refund.processed" ||
-    params.eventType === "refund.created"
+    params.eventType === "refund.created" ||
+    params.eventType === "payment.refunded"
   ) {
-    const targetOrder = await findOrderForPaymentReference({
+    let targetOrder = await findOrderForPaymentReference({
       orderId: params.storeOrderId,
       razorpayOrderId: params.razorpayOrderId,
       razorpayPaymentId: params.razorpayPaymentId
     });
+
+    // Out-of-order support: if refund webhook arrives before order exists locally, record it
+    if (!targetOrder && (params.razorpayOrderId || params.razorpayPaymentId)) {
+      targetOrder = await createOrderFromVerifiedWebhook({
+        razorpayOrderId:
+          params.razorpayOrderId || `order_for_${params.razorpayPaymentId}`,
+        razorpayPaymentId: params.razorpayPaymentId,
+        razorpayRefundId: params.razorpayRefundId,
+        amountPaise: params.amountPaise,
+        paymentStatus: "refunded",
+        orderStatus: "refund_requested",
+        customerName: params.customerName,
+        customerEmail: params.customerEmail,
+        customerPhone: params.customerPhone,
+        productName: params.productName,
+        productSlug: params.productSlug,
+        productId: params.productId,
+        quantity: params.quantity,
+        createdAtUnix: params.createdAtUnix,
+        historyNote: `Refund processed via Razorpay (${params.razorpayRefundId || params.razorpayPaymentId || "refund"})`
+      });
+      if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
+      return {
+        handled: true,
+        duplicate: false,
+        outOfOrder: true,
+        order: targetOrder
+      };
+    }
 
     if (!targetOrder) {
       return {
@@ -1033,7 +1488,11 @@ export async function processRazorpayWebhookEvent(params: {
       };
     }
 
-    if (targetOrder.payment_status === "refunded") {
+    if (
+      targetOrder.payment_status === "refunded" &&
+      (!params.razorpayRefundId ||
+        targetOrder.razorpay_refund_id === params.razorpayRefundId)
+    ) {
       if (dedupeKey) store.processedWebhookEventIds.push(dedupeKey);
       return {
         handled: true,
@@ -1044,6 +1503,15 @@ export async function processRazorpayWebhookEvent(params: {
 
     const now = new Date().toISOString();
     targetOrder.payment_status = "refunded";
+    if (params.razorpayRefundId) {
+      targetOrder.razorpay_refund_id = params.razorpayRefundId;
+    }
+    if (params.razorpayPaymentId && !targetOrder.razorpay_payment_id) {
+      targetOrder.razorpay_payment_id = params.razorpayPaymentId;
+    }
+    if (params.razorpayOrderId && !targetOrder.razorpay_order_id) {
+      targetOrder.razorpay_order_id = params.razorpayOrderId;
+    }
     targetOrder.status_history.push({
       from_status: targetOrder.order_status,
       to_status: targetOrder.order_status,

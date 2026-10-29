@@ -125,6 +125,11 @@ export interface StoreOrderRecord {
   payment_status: OrderPaymentStatus;
   /** Safe provider reference only (e.g. Razorpay order_id / payment_id) — never card numbers or secrets */
   payment_reference: string | null;
+  razorpay_order_id?: string | null;
+  razorpay_payment_id?: string | null;
+  razorpay_refund_id?: string | null;
+  product_name?: string | null;
+  amount?: number;
   order_status: OrderStatusStage;
   courier_name: string | null;
   tracking_number: string | null;

@@ -101,6 +101,13 @@ export function AdminDashboardClient({
   const knownOrderIdsRef = useRef<Set<string>>(
     new Set(initialOrders.map((o) => o.id))
   );
+  const knownPaidOrderIdsRef = useRef<Set<string>>(
+    new Set(
+      initialOrders
+        .filter((o) => o.payment_status === "paid")
+        .map((o) => o.id)
+    )
+  );
 
   // Order Management Filters & Sorting
   const [orderSearch, setOrderSearch] = useState("");
@@ -229,13 +236,31 @@ export function AdminDashboardClient({
           const incomingNew = data.orders.filter(
             (o) => !knownOrderIdsRef.current.has(o.id)
           );
-          if (incomingNew.length > 0 && knownOrderIdsRef.current.size > 0) {
+          const newlyPaid = data.orders.filter(
+            (o) =>
+              o.payment_status === "paid" &&
+              !knownPaidOrderIdsRef.current.has(o.id)
+          );
+          if (newlyPaid.length > 0) {
+            const latestPaid = newlyPaid[0]!;
+            setNewOrderLiveAlert(
+              `Verified Razorpay payment confirmed for Order ${latestPaid.order_number} (${formatInr(latestPaid.final_total)}) — Payment ID: ${latestPaid.razorpay_payment_id || latestPaid.payment_reference || "verified"}`
+            );
+          } else if (
+            incomingNew.length > 0 &&
+            knownOrderIdsRef.current.size > 0
+          ) {
             const latest = incomingNew[0]!;
             setNewOrderLiveAlert(
               `New order ${latest.order_number} arrived from ${latest.customer_name} (${formatInr(latest.final_total)})`
             );
           }
-          data.orders.forEach((o) => knownOrderIdsRef.current.add(o.id));
+          data.orders.forEach((o) => {
+            knownOrderIdsRef.current.add(o.id);
+            if (o.payment_status === "paid") {
+              knownPaidOrderIdsRef.current.add(o.id);
+            }
+          });
           setOrders(data.orders);
         }
         if (data.customers) setCustomers(data.customers);
@@ -251,12 +276,19 @@ export function AdminDashboardClient({
     }
   }, []);
 
-  // Poll every 20 seconds so approved admins receive live in-dashboard order alerts
+  // Poll every 8 seconds and on window focus so approved admins see verified webhook payments & new orders automatically
   useEffect(() => {
     const interval = setInterval(() => {
       void refreshDashboard(true);
-    }, 20000);
-    return () => clearInterval(interval);
+    }, 8000);
+    const onFocus = () => {
+      void refreshDashboard(true);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [refreshDashboard]);
 
   // Dashboard Summary Metrics
@@ -1558,7 +1590,7 @@ export function AdminDashboardClient({
                                 {formatInr(order.final_total)}
                               </span>
                             </div>
-                            <div className="mt-3 border-t border-gold/15 pt-2 text-[11px] text-cream-muted">
+                            <div className="mt-3 space-y-1 border-t border-gold/15 pt-2 text-[11px] text-cream-muted">
                               <p>
                                 Payment Method:{" "}
                                 <strong className="text-cream">
@@ -1571,7 +1603,31 @@ export function AdminDashboardClient({
                                   {PAYMENT_STATUS_LABELS[order.payment_status]}
                                 </strong>
                               </p>
-                              <p className="mt-0.5 font-mono">
+                              <p className="font-mono">
+                                Razorpay Order ID:{" "}
+                                <span className="text-cream">
+                                  {order.razorpay_order_id ||
+                                    order.payment_reference?.split(" / ")[0] ||
+                                    "—"}
+                                </span>
+                              </p>
+                              <p className="font-mono">
+                                Razorpay Payment ID:{" "}
+                                <span className="text-gold-bright">
+                                  {order.razorpay_payment_id ||
+                                    order.payment_reference?.split(" / ")[1] ||
+                                    "—"}
+                                </span>
+                              </p>
+                              {order.razorpay_refund_id && (
+                                <p className="font-mono">
+                                  Razorpay Refund ID:{" "}
+                                  <span className="text-[#ff9ebb]">
+                                    {order.razorpay_refund_id}
+                                  </span>
+                                </p>
+                              )}
+                              <p className="font-mono">
                                 Safe Provider Transaction Ref:{" "}
                                 {order.payment_reference ||
                                   "None (No card/CVV data is ever stored)"}

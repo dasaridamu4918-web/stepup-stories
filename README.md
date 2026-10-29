@@ -82,14 +82,14 @@ In your Vercel project dashboard (**Settings -> Environment Variables**), config
 | :--- | :--- | :--- |
 | `RAZORPAY_KEY_ID` | Your Razorpay Key ID (starts with `rzp_test_` in Test Mode or `rzp_live_` in Live Mode). Returned by the server only when initializing checkout. | `rzp_test_xxxxxxxxxxxxxx` |
 | `RAZORPAY_KEY_SECRET` | **Server-only** Key Secret used to create orders on the server and verify HMAC-SHA256 payment signatures. **Never** expose to the browser, mobile app, repository, or logs. | *(From Razorpay Dashboard)* |
-| `RAZORPAY_WEBHOOK_SECRET` | **Server-only** Webhook Secret used to verify the `x-razorpay-signature` header against the raw request body on `/api/payments/razorpay/webhook`. | *(From Razorpay Webhooks)* |
+| `RAZORPAY_WEBHOOK_SECRET` | **Server-only** Webhook Secret used to verify the `x-razorpay-signature` header against the raw request body on `/api/razorpay/webhook`. | *(From Razorpay Webhooks)* |
 
 ### 2. Setting Up the Razorpay Test Webhook
 1. Sign in to the [Razorpay Dashboard](https://dashboard.razorpay.com/) and switch the top banner to **Test Mode**.
 2. Go to **Account & Settings -> Webhooks** and click **+ Add New Webhook**.
 3. Enter the **Webhook URL**:
    ```text
-   https://stepup-stories.vercel.app/api/payments/razorpay/webhook
+   https://stepup-stories.vercel.app/api/razorpay/webhook
    ```
 4. Enter a strong **Secret** (for example, a 32-character random string) and save that exact value as `RAZORPAY_WEBHOOK_SECRET` in Vercel Environment Variables.
 5. Under **Active Events**, select:
@@ -97,16 +97,17 @@ In your Vercel project dashboard (**Settings -> Environment Variables**), config
    - `order.paid`
    - `payment.failed`
    - `refund.processed`
-6. Click **Create Webhook**. Duplicate webhook deliveries are handled idempotently using `x-razorpay-event-id` and order payment state checks.
+   - `refund.created`
+6. Click **Create Webhook**. Duplicate webhook deliveries and out-of-order events are handled safely using `x-razorpay-event-id` and order payment state checks.
 
 ### 3. Setting Up the Razorpay Live Webhook & Switching to Live Mode
 When your Razorpay account KYC is approved and you are ready to accept real INR payments:
 1. In the [Razorpay Dashboard](https://dashboard.razorpay.com/), switch from **Test Mode** to **Live Mode**.
 2. Go to **Account & Settings -> API Keys** and generate your **Live Mode** key pair (`RAZORPAY_KEY_ID` starting with `rzp_live_` and `RAZORPAY_KEY_SECRET`).
 3. Go to **Account & Settings -> Webhooks** (while in **Live Mode**) and click **+ Add New Webhook**:
-   - **Webhook URL:** `https://stepup-stories.vercel.app/api/payments/razorpay/webhook`
+   - **Webhook URL:** `https://stepup-stories.vercel.app/api/razorpay/webhook`
    - **Secret:** Set a strong Live Webhook secret.
-   - **Active Events:** `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`.
+   - **Active Events:** `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`, `refund.created`.
 4. In your **Vercel Dashboard -> Settings -> Environment Variables** (for the **Production** environment), update:
    - `RAZORPAY_KEY_ID` = your `rzp_live_...` Key ID
    - `RAZORPAY_KEY_SECRET` = your Live Key Secret
