@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { ProductRecord, StoreOrderRecord } from "@/types/database";
@@ -98,9 +98,46 @@ export function ProductCheckoutFlow({
   const [city, setCity] = useState("");
   const [stateName, setStateName] = useState("Maharashtra");
   const [pincode, setPincode] = useState("");
+  const [isOnlineConfigured, setIsOnlineConfigured] = useState(
+    onlinePaymentConfigured
+  );
+  const [activeRazorpayMode, setActiveRazorpayMode] = useState<"test" | "live">(
+    razorpayMode
+  );
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "razorpay">(
     onlinePaymentConfigured ? "razorpay" : "cod"
   );
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/razorpay/webhook", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then(
+        (
+          data: {
+            online_checkout_ready?: boolean;
+            mode?: "test" | "live";
+          } | null
+        ) => {
+          if (!active || !data) return;
+          if (typeof data.online_checkout_ready === "boolean") {
+            setIsOnlineConfigured(data.online_checkout_ready);
+            if (data.online_checkout_ready) {
+              setPaymentMethod("razorpay");
+            }
+          }
+          if (data.mode === "live" || data.mode === "test") {
+            setActiveRazorpayMode(data.mode);
+          }
+        }
+      )
+      .catch(() => {
+        // Ignore network errors during initial status check
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -157,7 +194,7 @@ export function ProductCheckoutFlow({
       return;
     }
 
-    if (paymentMethod === "razorpay" && !onlinePaymentConfigured) {
+    if (paymentMethod === "razorpay" && !isOnlineConfigured) {
       setErrorMessage(
         "Online payment is not configured on the server yet. Please choose Cash on Delivery (COD)."
       );
@@ -898,7 +935,7 @@ export function ProductCheckoutFlow({
               </label>
 
               {/* Option 2: Online Payment (Offered ONLY when payment provider is configured on server) */}
-              {onlinePaymentConfigured ? (
+              {isOnlineConfigured ? (
                 <label
                   className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
                     paymentMethod === "razorpay"
@@ -919,12 +956,14 @@ export function ProductCheckoutFlow({
                       Online Payment (Razorpay)
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
-                          razorpayMode === "live"
+                          activeRazorpayMode === "live"
                             ? "border border-emerald-500/50 bg-emerald-500/20 text-emerald-300"
                             : "border border-gold/50 bg-gold/20 text-gold-bright"
                         }`}
                       >
-                        {razorpayMode === "live" ? "LIVE MODE" : "TEST MODE"}
+                        {activeRazorpayMode === "live"
+                          ? "LIVE MODE"
+                          : "TEST MODE"}
                       </span>
                     </span>
                     <span className="mt-1 block text-xs text-cream-secondary">

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getProductBySlug,
-  getPublishedProducts,
   getRazorpayConfigStatus,
   getSiteSettings,
   isOnlinePaymentProviderConfigured
@@ -12,12 +11,7 @@ import {
 import { ProductDetailGallery } from "@/components/ProductDetailGallery";
 import { ProductCheckoutFlow } from "@/components/ProductCheckoutFlow";
 
-export const revalidate = 60;
-
-export async function generateStaticParams() {
-  const products = await getPublishedProducts();
-  return products.map((p) => ({ slug: p.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params

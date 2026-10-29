@@ -46,6 +46,45 @@ interface RazorpayWebhookPayload {
   };
 }
 
+export async function GET() {
+  const keyId = process.env.RAZORPAY_KEY_ID?.trim() || "";
+  const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim() || "";
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim() || "";
+
+  const hasKeyId = Boolean(keyId);
+  const hasKeySecret = Boolean(keySecret);
+  const hasWebhookSecret = Boolean(webhookSecret);
+  const keyIdAndSecretSeparate =
+    hasKeyId &&
+    hasKeySecret &&
+    keyId !== keySecret &&
+    !keyId.includes(":") &&
+    !keySecret.includes(":");
+
+  const missingVariables: string[] = [];
+  if (!hasKeyId) missingVariables.push("RAZORPAY_KEY_ID");
+  if (!hasKeySecret) missingVariables.push("RAZORPAY_KEY_SECRET");
+  if (!hasWebhookSecret) missingVariables.push("RAZORPAY_WEBHOOK_SECRET");
+
+  return NextResponse.json(
+    {
+      ok: true,
+      endpoint: "/api/razorpay/webhook",
+      environment_status: {
+        RAZORPAY_KEY_ID: hasKeyId,
+        RAZORPAY_KEY_SECRET: hasKeySecret,
+        RAZORPAY_WEBHOOK_SECRET: hasWebhookSecret
+      },
+      online_checkout_ready: hasKeyId && hasKeySecret,
+      webhook_ready: hasWebhookSecret,
+      key_id_and_secret_separate: keyIdAndSecretSeparate,
+      missing_variables: missingVariables,
+      mode: hasKeyId && keyId.startsWith("rzp_live_") ? "live" : "test"
+    },
+    { status: 200 }
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim();

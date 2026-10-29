@@ -1,1 +1,1 @@
-export { POST } from "@/app/api/razorpay/webhook/route";
+export { GET, POST } from "@/app/api/razorpay/webhook/route";
