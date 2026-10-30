@@ -48,6 +48,18 @@ function formatInr(amount: number): string {
   return `₹${Math.round(amount).toLocaleString("en-IN")}`;
 }
 
+function cacheOrderSnapshot(order: StoreOrderRecord): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      `stepup_order_${order.order_number.toUpperCase()}`,
+      JSON.stringify(order)
+    );
+  } catch {
+    // Ignore storage quota / privacy mode errors
+  }
+}
+
 declare global {
   interface Window {
     Razorpay?: new (options: Record<string, unknown>) => {
@@ -288,6 +300,7 @@ export function ProductCheckoutFlow({
         }
 
         activeOrder = orderData.order;
+        cacheOrderSnapshot(activeOrder);
         setPendingOrder(activeOrder);
       }
 
@@ -299,6 +312,7 @@ export function ProductCheckoutFlow({
 
       // 2. If Cash on Delivery, show order confirmation immediately (payment_status remains 'pending' until delivery)
       if (paymentMethod === "cod") {
+        cacheOrderSnapshot(activeOrder);
         setConfirmedOrder(activeOrder);
         setSubmitting(false);
         return;
@@ -358,6 +372,7 @@ export function ProductCheckoutFlow({
 
       activeOrder.payment_reference = rzpInitData.order_id;
       activeOrder.razorpay_order_id = rzpInitData.order_id;
+      cacheOrderSnapshot(activeOrder);
 
       // 5. Open Razorpay Standard Checkout.
       // Keep the order unpaid until the server verifies the HMAC-SHA256 payment signature.
@@ -372,6 +387,12 @@ export function ProductCheckoutFlow({
         name: "STEPUP STORIES",
         description: `${product.name} (Qty ${quantity}) — ${orderForCallbacks.order_number}`,
         order_id: rzpInitData.order_id,
+        method: {
+          upi: true,
+          netbanking: true,
+          card: true,
+          wallet: true
+        },
         prefill: {
           name: customerName.trim(),
           email: customerEmail.trim(),
@@ -396,6 +417,13 @@ export function ProductCheckoutFlow({
             // Customer closed/cancelled the Razorpay checkout modal:
             // keep the order unpaid and allow them to retry right here.
             if (!paymentFailedInModal) {
+              const pendingAfterCancel: StoreOrderRecord = {
+                ...orderForCallbacks,
+                payment_status: "pending",
+                order_status: "new"
+              };
+              cacheOrderSnapshot(pendingAfterCancel);
+              setPendingOrder(pendingAfterCancel);
               setErrorMessage(
                 `Payment was cancelled. Order ${orderForCallbacks.order_number} remains unpaid (Pending). Tap 'Retry Payment with Razorpay' below to complete payment.`
               );
@@ -451,6 +479,7 @@ export function ProductCheckoutFlow({
                 razorpay_payment_id: response.razorpay_payment_id || null,
                 payment_reference: `${response.razorpay_order_id || rzpInitData.order_id} / ${response.razorpay_payment_id || ""}`
               };
+              cacheOrderSnapshot(paidOrder);
               setPendingOrder(null);
               setConfirmedOrder(paidOrder);
             } else {
@@ -472,12 +501,19 @@ export function ProductCheckoutFlow({
       if (typeof rzp.on === "function") {
         rzp.on("payment.failed", (failResponse) => {
           paymentFailedInModal = true;
+          const failedSnapshot: StoreOrderRecord = {
+            ...orderForCallbacks,
+            payment_status: "failed",
+            order_status: "new"
+          };
+          cacheOrderSnapshot(failedSnapshot);
+          setPendingOrder(failedSnapshot);
           const desc =
             failResponse?.error?.description ||
             failResponse?.error?.reason ||
             "Your payment attempt did not succeed.";
           setErrorMessage(
-            `Payment failed: ${desc} Order ${orderForCallbacks.order_number} remains unpaid. You can retry payment in the Razorpay window or tap 'Retry Payment with Razorpay' below.`
+            `Payment failed: ${desc} Order ${orderForCallbacks.order_number} remains unpaid (Failed). You can retry payment in the Razorpay window or tap 'Retry Payment with Razorpay' below.`
           );
           setSubmitting(false);
         });
@@ -1082,9 +1118,12 @@ export function ProductCheckoutFlow({
                       </span>
                     </span>
                     <span className="mt-1 block text-xs text-cream-secondary">
-                      Razorpay Standard Checkout (INR) — UPI, Cards &amp;
-                      NetBanking. Server-calculated amount &amp; HMAC signature
-                      verified before marking paid.
+                      Razorpay Standard Checkout (INR) — UPI &amp; Netbanking
+                      enabled. On supported mobile devices, Razorpay shows
+                      installed UPI apps (such as PhonePe, Google Pay, and BHIM
+                      when available); on desktop or when app switching is
+                      unavailable, Razorpay shows UPI QR, UPI ID, Netbanking,
+                      and Cards.
                     </span>
                   </div>
                 </label>
@@ -1119,19 +1158,35 @@ export function ProductCheckoutFlow({
           </div>
 
           {pendingOrder && (
-            <div className="rounded-xl border border-gold/40 bg-gold/10 p-3.5 text-xs text-cream">
+            <div className="rounded-xl border border-gold/40 bg-gold/10 p-4 text-xs text-cream">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold text-gold-bright">
-                  Order #{pendingOrder.order_number} Created — Payment Pending
+                  Order #{pendingOrder.order_number} Created
                 </span>
-                <span className="rounded border border-amber-400/50 bg-amber-950/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
-                  UNPAID ({pendingOrder.payment_status.toUpperCase()})
-                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="rounded border border-amber-400/50 bg-amber-950/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+                    PAYMENT:{" "}
+                    {pendingOrder.payment_status === "failed"
+                      ? "FAILED (UNPAID)"
+                      : "PENDING (UNPAID)"}
+                  </span>
+                  <span className="rounded border border-gold/40 bg-obsidian/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold">
+                    ORDER: {pendingOrder.order_status.toUpperCase()}
+                  </span>
+                </div>
               </div>
-              <p className="mt-1 text-cream-secondary">
-                Your order will only be marked Paid after Razorpay payment
-                succeeds and our server verifies the cryptographic signature.
+              <p className="mt-1.5 text-cream-secondary">
+                Your order remains unpaid until Razorpay payment succeeds and
+                our server verifies the cryptographic signature.
               </p>
+              <div className="mt-2.5 border-t border-gold/20 pt-2">
+                <Link
+                  href={`/orders/track?order_number=${encodeURIComponent(pendingOrder.order_number)}&phone=${encodeURIComponent(pendingOrder.customer_phone)}`}
+                  className="inline-flex items-center gap-1 font-semibold text-gold-bright underline underline-offset-4 hover:text-gold"
+                >
+                  Track Created Order #{pendingOrder.order_number} Status &rarr;
+                </Link>
+              </div>
             </div>
           )}
 
@@ -1162,14 +1217,8 @@ export function ProductCheckoutFlow({
 
           <p className="text-center text-[11px] text-cream-muted">
             STEPUP STORIES never stores card numbers, CVV codes, or payment
-            secrets. Already placed an order?{" "}
-            <Link
-              href="/orders/track"
-              className="text-gold-bright underline underline-offset-4"
-            >
-              Track your order status
-            </Link>
-            .
+            secrets. Order tracking becomes available immediately after your
+            order is created.
           </p>
         </form>
       </div>

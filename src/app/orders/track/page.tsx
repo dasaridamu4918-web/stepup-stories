@@ -41,6 +41,29 @@ function OrderTrackClient() {
       return;
     }
 
+    const readMatchingCachedOrder = (): StoreOrderRecord | null => {
+      if (typeof window === "undefined") return null;
+      try {
+        const raw = window.sessionStorage.getItem(`stepup_order_${cleanOrd}`);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as StoreOrderRecord;
+        if (parsed.order_number?.toUpperCase() !== cleanOrd) return null;
+        if (cleanContact.includes("@")) {
+          if (parsed.customer_email?.toLowerCase() !== cleanContact.toLowerCase()) {
+            return null;
+          }
+        } else {
+          const digits = cleanContact.replace(/\D/g, "").slice(-10);
+          if (parsed.customer_phone?.replace(/\D/g, "").slice(-10) !== digits) {
+            return null;
+          }
+        }
+        return parsed;
+      } catch {
+        return null;
+      }
+    };
+
     setLoading(true);
     setError(null);
     try {
@@ -60,17 +83,29 @@ function OrderTrackClient() {
         error?: string;
       };
 
+      const cached = readMatchingCachedOrder();
       if (!res.ok || !data.ok || !data.order) {
-        setOrder(null);
-        setError(
-          data.error ||
-            "No matching order found. Please check your Order Number and contact details."
-        );
+        if (cached) {
+          setOrder(cached);
+        } else {
+          setOrder(null);
+          setError(
+            data.error ||
+              "No matching order found. Please check your Order Number and contact details."
+          );
+        }
+      } else if (cached && cached.payment_status === "paid" && data.order.payment_status !== "paid") {
+        setOrder(cached);
       } else {
         setOrder(data.order);
       }
     } catch {
-      setError("Unable to look up order status. Please try again.");
+      const cached = readMatchingCachedOrder();
+      if (cached) {
+        setOrder(cached);
+      } else {
+        setError("Unable to look up order status. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -175,9 +210,29 @@ function OrderTrackClient() {
                 Placed on {new Date(order.created_at).toLocaleString("en-IN")}
               </p>
             </div>
-            <span className="rounded-full border border-gold/50 bg-gold/15 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-gold-bright">
-              {STAGE_LABELS[order.order_status] ?? order.order_status}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-wider ${
+                  order.payment_status === "paid"
+                    ? "border border-emerald-500/50 bg-emerald-500/15 text-emerald-300"
+                    : order.payment_status === "failed"
+                      ? "border border-crimson/60 bg-crimson/20 text-[#ffb3c1]"
+                      : "border border-amber-400/50 bg-amber-950/60 text-amber-200"
+                }`}
+              >
+                Payment:{" "}
+                {order.payment_status === "paid"
+                  ? "Paid (Verified)"
+                  : order.payment_status === "failed"
+                    ? "Failed (Unpaid)"
+                    : order.payment_method === "cod"
+                      ? "Pay on Delivery (COD)"
+                      : "Pending (Unpaid)"}
+              </span>
+              <span className="rounded-full border border-gold/50 bg-gold/15 px-4 py-1 text-xs font-semibold uppercase tracking-wider text-gold-bright">
+                Order: {STAGE_LABELS[order.order_status] ?? order.order_status}
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
