@@ -52,6 +52,15 @@ declare global {
   interface Window {
     Razorpay?: new (options: Record<string, unknown>) => {
       open: () => void;
+      on: (
+        event: string,
+        callback: (response: {
+          error?: {
+            description?: string;
+            reason?: string;
+          };
+        }) => void
+      ) => void;
     };
   }
 }
@@ -141,6 +150,9 @@ export function ProductCheckoutFlow({
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<StoreOrderRecord | null>(
+    null
+  );
   const [confirmedOrder, setConfirmedOrder] = useState<StoreOrderRecord | null>(
     null
   );
@@ -163,8 +175,17 @@ export function ProductCheckoutFlow({
         resolve(true);
         return;
       }
+      const existingScript = document.querySelector(
+        'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+      ) as HTMLScriptElement | null;
+      if (existingScript) {
+        existingScript.addEventListener("load", () => resolve(true));
+        existingScript.addEventListener("error", () => resolve(false));
+        return;
+      }
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
       script.onload = () => resolve(true);
       script.onerror = () => resolve(false);
       document.body.appendChild(script);
@@ -203,78 +224,113 @@ export function ProductCheckoutFlow({
 
     setSubmitting(true);
     try {
-      // 1. Create the order record on the server first.
-      // The server looks up the product in the trusted backend catalog and calculates
-      // the authoritative INR total (never trusting browser-supplied amounts).
-      // Orders always start with payment_status = 'pending'.
-      const orderRes = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer_name: customerName.trim(),
-          customer_email: customerEmail.trim().toLowerCase(),
-          customer_phone: cleanPhone,
-          delivery_address: {
-            address_line1: addressLine1.trim(),
-            address_line2: addressLine2.trim(),
-            landmark: landmark.trim(),
-            city: city.trim(),
-            state: stateName,
-            pincode: cleanPin
-          },
-          items: [
-            {
-              product_id: product.id,
-              slug: product.slug,
-              name: product.name,
-              collection_name: product.collection?.name ?? null,
-              selected_options: null,
-              quantity,
-              unit_price: unitSalePrice,
-              original_unit_price: unitOriginalPrice,
-              image_url: primaryImage?.url ?? null
-            }
-          ],
-          delivery_fee: deliveryFee,
-          payment_method: paymentMethod,
-          payment_reference: "",
-          source: "website"
-        })
-      });
+      let activeOrder = pendingOrder;
+      const canReusePendingOrder =
+        activeOrder &&
+        paymentMethod === "razorpay" &&
+        activeOrder.payment_status !== "paid" &&
+        activeOrder.items[0]?.quantity === quantity &&
+        activeOrder.customer_phone === cleanPhone;
 
-      const orderData = (await orderRes.json()) as {
-        ok?: boolean;
-        order?: StoreOrderRecord;
-        error?: string;
-      };
+      if (!canReusePendingOrder) {
+        // 1. Create the order record on the server first.
+        // The server looks up the product in the trusted backend catalog and calculates
+        // the authoritative INR total (never trusting browser-supplied amounts).
+        // Orders always start with payment_status = 'pending' (unpaid).
+        const orderRes = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer_name: customerName.trim(),
+            customer_email: customerEmail.trim().toLowerCase(),
+            customer_phone: cleanPhone,
+            delivery_address: {
+              address_line1: addressLine1.trim(),
+              address_line2: addressLine2.trim(),
+              landmark: landmark.trim(),
+              city: city.trim(),
+              state: stateName,
+              pincode: cleanPin
+            },
+            items: [
+              {
+                product_id: product.id,
+                slug: product.slug,
+                name: product.name,
+                collection_name: product.collection?.name ?? null,
+                selected_options: null,
+                quantity,
+                unit_price: unitSalePrice,
+                original_unit_price: unitOriginalPrice,
+                image_url: primaryImage?.url ?? null
+              }
+            ],
+            delivery_fee: deliveryFee,
+            payment_method: paymentMethod,
+            payment_reference: "",
+            source: "website"
+          })
+        });
 
-      if (!orderRes.ok || !orderData.ok || !orderData.order) {
+        const orderData = (await orderRes.json()) as {
+          ok?: boolean;
+          order?: StoreOrderRecord;
+          error?: string;
+        };
+
+        if (!orderRes.ok || !orderData.ok || !orderData.order) {
+          setErrorMessage(
+            orderData.error ||
+              "Please check your delivery details and try again."
+          );
+          setSubmitting(false);
+          return;
+        }
+
+        activeOrder = orderData.order;
+        setPendingOrder(activeOrder);
+      }
+
+      if (!activeOrder) {
+        setErrorMessage("Unable to initialize order. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+
+      // 2. If Cash on Delivery, show order confirmation immediately (payment_status remains 'pending' until delivery)
+      if (paymentMethod === "cod") {
+        setConfirmedOrder(activeOrder);
+        setSubmitting(false);
+        return;
+      }
+
+      // 3. Preload the Razorpay Standard Checkout SDK
+      const sdkLoaded = await loadRazorpayScript();
+      if (!sdkLoaded || !window.Razorpay) {
         setErrorMessage(
-          orderData.error ||
-            "Please check your delivery details and try again."
+          `Order ${activeOrder.order_number} is saved as Unpaid (Pending), but the Razorpay Standard Checkout script could not be loaded. Please check your connection or ad-blocker and tap 'Retry Payment' below.`
         );
         setSubmitting(false);
         return;
       }
 
-      const createdOrder = orderData.order;
-
-      // 2. If Cash on Delivery, show order confirmation immediately
-      if (paymentMethod === "cod") {
-        setConfirmedOrder(createdOrder);
-        setSubmitting(false);
-        return;
-      }
-
-      // 3. Create the Razorpay order on the server using the trusted server order ID & total
+      // 4. Create the Razorpay order on the server using the trusted server order & catalog items
       const rzpInitRes = await fetch("/api/payments/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          store_order_id: createdOrder.id,
-          receipt: createdOrder.order_number,
-          customer_name: createdOrder.customer_name,
-          customer_phone: createdOrder.customer_phone
+          store_order_id: activeOrder.id,
+          items: [
+            {
+              product_id: product.id,
+              slug: product.slug,
+              quantity
+            }
+          ],
+          delivery_fee: deliveryFee,
+          receipt: activeOrder.order_number,
+          customer_name: activeOrder.customer_name,
+          customer_phone: activeOrder.customer_phone
         })
       });
 
@@ -294,33 +350,27 @@ export function ProductCheckoutFlow({
       ) {
         setErrorMessage(
           rzpInitData.error ||
-            `Order ${createdOrder.order_number} was saved with Pending payment status, but online payment could not be initialized.`
+            `Order ${activeOrder.order_number} remains Unpaid (Pending) because Razorpay order creation failed. Please tap 'Retry Payment' to try again.`
         );
-        setConfirmedOrder(createdOrder);
         setSubmitting(false);
         return;
       }
 
-      createdOrder.payment_reference = rzpInitData.order_id;
+      activeOrder.payment_reference = rzpInitData.order_id;
+      activeOrder.razorpay_order_id = rzpInitData.order_id;
 
-      // 4. Open Razorpay Standard Checkout and verify the HMAC signature on the server
-      // before marking the order as paid.
-      const sdkLoaded = await loadRazorpayScript();
-      if (!sdkLoaded || !window.Razorpay) {
-        setErrorMessage(
-          `Order ${createdOrder.order_number} was saved with Pending payment status, but the Razorpay Standard Checkout script could not be loaded.`
-        );
-        setConfirmedOrder(createdOrder);
-        setSubmitting(false);
-        return;
-      }
+      // 5. Open Razorpay Standard Checkout.
+      // Keep the order unpaid until the server verifies the HMAC-SHA256 payment signature.
+      const orderForCallbacks = activeOrder;
+      let paymentFailedInModal = false;
 
       const rzp = new window.Razorpay({
         key: rzpInitData.razorpay_key_id,
-        amount: rzpInitData.amount ?? Math.round(createdOrder.final_total * 100),
+        amount:
+          rzpInitData.amount ?? Math.round(orderForCallbacks.final_total * 100),
         currency: rzpInitData.currency || "INR",
         name: "STEPUP STORIES",
-        description: `${product.name} (Qty ${quantity}) — ${createdOrder.order_number}`,
+        description: `${product.name} (Qty ${quantity}) — ${orderForCallbacks.order_number}`,
         order_id: rzpInitData.order_id,
         prefill: {
           name: customerName.trim(),
@@ -328,15 +378,28 @@ export function ProductCheckoutFlow({
           contact: cleanPhone
         },
         notes: {
-          store_order_id: createdOrder.id,
-          order_number: createdOrder.order_number
+          store_order_id: orderForCallbacks.id,
+          order_number: orderForCallbacks.order_number,
+          customer_name: customerName.trim(),
+          customer_email: customerEmail.trim().toLowerCase(),
+          customer_phone: cleanPhone,
+          product_name: product.name,
+          product_slug: product.slug,
+          product_id: product.id,
+          quantity: String(quantity)
         },
         theme: {
           color: "#D4B475"
         },
         modal: {
           ondismiss: () => {
-            setConfirmedOrder(createdOrder);
+            // Customer closed/cancelled the Razorpay checkout modal:
+            // keep the order unpaid and allow them to retry right here.
+            if (!paymentFailedInModal) {
+              setErrorMessage(
+                `Payment was cancelled. Order ${orderForCallbacks.order_number} remains unpaid (Pending). Tap 'Retry Payment with Razorpay' below to complete payment.`
+              );
+            }
             setSubmitting(false);
           }
         },
@@ -345,34 +408,86 @@ export function ProductCheckoutFlow({
           razorpay_payment_id?: string;
           razorpay_signature?: string;
         }) => {
-          // Do not treat the browser callback alone as proof of payment:
-          // verify the HMAC-SHA256 signature on the server before marking the order paid.
-          const verifyRes = await fetch("/api/payments/razorpay/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              store_order_id: createdOrder.id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            })
-          });
-          const verifyData = (await verifyRes.json()) as {
-            verified?: boolean;
-            store_order?: StoreOrderRecord;
-          };
-          if (verifyRes.ok && verifyData.verified && verifyData.store_order) {
-            setConfirmedOrder(verifyData.store_order);
-          } else {
-            setConfirmedOrder(createdOrder);
+          try {
+            // Do not treat the browser callback alone as proof of payment:
+            // verify the HMAC-SHA256 signature on the server before marking the order paid.
+            const verifyRes = await fetch("/api/payments/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                store_order_id: orderForCallbacks.id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                customer_name: customerName.trim(),
+                customer_email: customerEmail.trim().toLowerCase(),
+                customer_phone: cleanPhone,
+                product_name: product.name,
+                product_slug: product.slug,
+                product_id: product.id,
+                quantity,
+                address_line1: addressLine1.trim(),
+                city: city.trim(),
+                state: stateName,
+                pincode: cleanPin
+              })
+            });
+
+            const verifyData = (await verifyRes.json()) as {
+              verified?: boolean;
+              order_id?: string;
+              payment_id?: string;
+              store_order?: StoreOrderRecord | null;
+              error?: string;
+            };
+
+            if (verifyRes.ok && verifyData.verified) {
+              const paidOrder: StoreOrderRecord = verifyData.store_order ?? {
+                ...orderForCallbacks,
+                payment_status: "paid",
+                order_status: "confirmed",
+                razorpay_order_id:
+                  response.razorpay_order_id || rzpInitData.order_id,
+                razorpay_payment_id: response.razorpay_payment_id || null,
+                payment_reference: `${response.razorpay_order_id || rzpInitData.order_id} / ${response.razorpay_payment_id || ""}`
+              };
+              setPendingOrder(null);
+              setConfirmedOrder(paidOrder);
+            } else {
+              setErrorMessage(
+                verifyData.error ||
+                  `Payment signature verification failed. Order ${orderForCallbacks.order_number} remains unpaid. Please tap 'Retry Payment with Razorpay' to try again.`
+              );
+            }
+          } catch {
+            setErrorMessage(
+              `Network error while verifying payment for Order ${orderForCallbacks.order_number}. Your order remains pending until verified.`
+            );
+          } finally {
+            setSubmitting(false);
           }
-          setSubmitting(false);
         }
       });
 
+      if (typeof rzp.on === "function") {
+        rzp.on("payment.failed", (failResponse) => {
+          paymentFailedInModal = true;
+          const desc =
+            failResponse?.error?.description ||
+            failResponse?.error?.reason ||
+            "Your payment attempt did not succeed.";
+          setErrorMessage(
+            `Payment failed: ${desc} Order ${orderForCallbacks.order_number} remains unpaid. You can retry payment in the Razorpay window or tap 'Retry Payment with Razorpay' below.`
+          );
+          setSubmitting(false);
+        });
+      }
+
       rzp.open();
     } catch {
-      setErrorMessage("Network error while placing your order. Please try again.");
+      setErrorMessage(
+        "Network error while placing your order. Please try again."
+      );
       setSubmitting(false);
     }
   };
@@ -1003,6 +1118,32 @@ export function ProductCheckoutFlow({
             </div>
           </div>
 
+          {pendingOrder && (
+            <div className="rounded-xl border border-gold/40 bg-gold/10 p-3.5 text-xs text-cream">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold text-gold-bright">
+                  Order #{pendingOrder.order_number} Created — Payment Pending
+                </span>
+                <span className="rounded border border-amber-400/50 bg-amber-950/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+                  UNPAID ({pendingOrder.payment_status.toUpperCase()})
+                </span>
+              </div>
+              <p className="mt-1 text-cream-secondary">
+                Your order will only be marked Paid after Razorpay payment
+                succeeds and our server verifies the cryptographic signature.
+              </p>
+            </div>
+          )}
+
+          {errorMessage && (
+            <div
+              role="alert"
+              className="rounded-lg border border-crimson/50 bg-crimson/15 p-3 text-xs text-cream"
+            >
+              {errorMessage}
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={submitting || isOutOfStock}
@@ -1012,7 +1153,11 @@ export function ProductCheckoutFlow({
               ? "Out of Stock"
               : submitting
                 ? "Processing Your Order..."
-                : `Complete Order • ${formatInr(finalTotal)}`}
+                : paymentMethod === "razorpay" && pendingOrder
+                  ? `Retry Payment with Razorpay • ${formatInr(finalTotal)}`
+                  : paymentMethod === "razorpay"
+                    ? `Pay Now with Razorpay • ${formatInr(finalTotal)}`
+                    : `Complete Order • ${formatInr(finalTotal)}`}
           </button>
 
           <p className="text-center text-[11px] text-cream-muted">

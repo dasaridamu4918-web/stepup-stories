@@ -811,15 +811,44 @@ export async function markOrderPaidByProvider(params: {
   customerEmail?: string;
   customerPhone?: string;
   productName?: string;
+  productSlug?: string;
+  productId?: string;
+  quantity?: number;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
 }): Promise<StoreOrderRecord | null> {
   const safeRef = `${params.razorpayOrderId} / ${params.razorpayPaymentId}`;
   const now = new Date().toISOString();
 
-  const order = await findOrderForPaymentReference({
+  let order = await findOrderForPaymentReference({
     orderId: params.orderId,
     razorpayOrderId: params.razorpayOrderId,
     razorpayPaymentId: params.razorpayPaymentId
   });
+
+  if (!order && (params.productSlug || params.productId || params.productName)) {
+    order = await createOrderFromVerifiedWebhook({
+      razorpayOrderId: params.razorpayOrderId,
+      razorpayPaymentId: params.razorpayPaymentId,
+      paymentStatus: "paid",
+      orderStatus: "confirmed",
+      customerName: params.customerName,
+      customerEmail: params.customerEmail,
+      customerPhone: params.customerPhone,
+      productName: params.productName,
+      productSlug: params.productSlug,
+      productId: params.productId,
+      quantity: params.quantity,
+      addressLine1: params.addressLine1,
+      city: params.city,
+      state: params.state,
+      pincode: params.pincode,
+      historyNote: `Payment confirmed by provider (${safeRef})`
+    });
+    return order;
+  }
 
   if (!order) return null;
 

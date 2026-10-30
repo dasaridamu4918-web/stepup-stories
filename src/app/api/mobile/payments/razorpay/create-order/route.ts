@@ -36,9 +36,34 @@ export async function POST(request: NextRequest) {
     let amountInr = 0;
     let existingOrder = null;
 
+    const requestedItems = Array.isArray(body.items)
+      ? body.items
+      : body.product_id || body.slug
+        ? [
+            {
+              product_id: body.product_id || "",
+              slug: body.slug || "",
+              quantity: body.quantity ?? 1
+            }
+          ]
+        : [];
+
     if (body.store_order_id && body.store_order_id.trim()) {
       existingOrder = await getStoreOrderById(body.store_order_id.trim());
-      if (!existingOrder) {
+      if (existingOrder) {
+        amountInr = existingOrder.final_total;
+      } else if (requestedItems.length > 0) {
+        const pricing = await calculateTrustedOrderPricing({
+          items: requestedItems.map((i) => ({
+            product_id: String(i.product_id || ""),
+            slug: String(i.slug || ""),
+            quantity: Math.max(1, Math.floor(Number(i.quantity) || 1))
+          })),
+          delivery_fee: body.delivery_fee,
+          decrementStock: false
+        });
+        amountInr = pricing.finalTotal;
+      } else {
         return NextResponse.json(
           {
             ok: false,
@@ -47,20 +72,7 @@ export async function POST(request: NextRequest) {
           { status: 404, headers: corsHeaders }
         );
       }
-      amountInr = existingOrder.final_total;
     } else {
-      const requestedItems = Array.isArray(body.items)
-        ? body.items
-        : body.product_id || body.slug
-          ? [
-              {
-                product_id: body.product_id || "",
-                slug: body.slug || "",
-                quantity: body.quantity ?? 1
-              }
-            ]
-          : [];
-
       if (requestedItems.length === 0) {
         return NextResponse.json(
           {

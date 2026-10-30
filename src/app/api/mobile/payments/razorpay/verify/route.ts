@@ -19,6 +19,17 @@ export async function POST(request: NextRequest) {
       razorpay_order_id?: string;
       razorpay_payment_id?: string;
       razorpay_signature?: string;
+      customer_name?: string;
+      customer_email?: string;
+      customer_phone?: string;
+      product_name?: string;
+      product_slug?: string;
+      product_id?: string;
+      quantity?: number;
+      address_line1?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
     };
 
     const orderId = (body.razorpay_order_id || "").trim();
@@ -71,7 +82,18 @@ export async function POST(request: NextRequest) {
       orderId: body.store_order_id,
       razorpayOrderId: orderId,
       razorpayPaymentId: paymentId,
-      verifiedSource: "signature"
+      verifiedSource: "signature",
+      customerName: body.customer_name,
+      customerEmail: body.customer_email,
+      customerPhone: body.customer_phone,
+      productName: body.product_name,
+      productSlug: body.product_slug,
+      productId: body.product_id,
+      quantity: body.quantity,
+      addressLine1: body.address_line1,
+      city: body.city,
+      state: body.state,
+      pincode: body.pincode
     });
 
     const isTestMode = !(process.env.RAZORPAY_KEY_ID || "")
